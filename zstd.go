@@ -6,7 +6,9 @@ package zstd
 */
 import "C"
 import (
+	"bytes"
 	"errors"
+	"io/ioutil"
 	"unsafe"
 )
 
@@ -30,15 +32,15 @@ var (
 )
 
 var codeToError = map[int]error{
-	-1: ErrGeneric,
-	-2: ErrPrefixUnknown,
-	-3: ErrFrameParameterUnsupported,
-	-4: ErrFrameParameterUnsupportedBy32bits,
-	-5: ErrInitMissing,
-	-6: ErrMemoryAllocation,
-	-7: ErrStageWrong,
-	-8: ErrDstSizeTooSmall,
-	-9: ErrSrcSizeWrong,
+	-1:  ErrGeneric,
+	-2:  ErrPrefixUnknown,
+	-3:  ErrFrameParameterUnsupported,
+	-4:  ErrFrameParameterUnsupportedBy32bits,
+	-5:  ErrInitMissing,
+	-6:  ErrMemoryAllocation,
+	-7:  ErrStageWrong,
+	-8:  ErrDstSizeTooSmall,
+	-9:  ErrSrcSizeWrong,
 	-10: ErrCorruptionDetected,
 	-11: ErrTableLogTooLarge,
 	-12: ErrMaxSymbolValueTooLarge,
@@ -47,23 +49,27 @@ var codeToError = map[int]error{
 }
 
 // CompressBound returns the worst case size needed for a destination buffer
+// You can generate a dst buffer of this size before calling Compress to skip
+// its allocation
+// Scenario would be:
+// Keep a buffer arround, reallocate for each payload if CompressBound(payload) > len(buf)
 // Implentation is taken from the C code
 func CompressBound(srcSize int) int {
 	return 512 + srcSize + (srcSize >> 7) + 12
 }
 
 // Internal call to the C function to check that our implentation match
-func c_CompressBound(srcSize int) int {
+func cCompressBound(srcSize int) int {
 	return int(C.ZSTD_compressBound(C.size_t(srcSize)))
 }
 
-// getError return whether the returned int signify an error
+// getError return whether the returned int indicates an error
 // otherwise returns nil
 func getError(code int) error {
 	return codeToError[code]
 }
 
-func c_isError(code int) bool {
+func cIsError(code int) bool {
 	isErr := int(C.ZSTD_isError(C.size_t(code)))
 	if isErr != 0 {
 		return true
@@ -71,10 +77,15 @@ func c_isError(code int) bool {
 	return false
 }
 
+// Compress compresses the byte array in src and write to dst
+// If you already have a buffer laying, it's better to pass it as dst to reuse it
+// If the buffer is too small, it will automacally be resized and given back as a return
+// You can pass nil as dst, this will allocate the necessary size (CompressBound(src))
 func Compress(dst, src []byte) ([]byte, error) {
 	return CompressLevel(dst, src, DefaultCompressionLevel)
 }
 
+// CompressLevel is the same as Compress but you can pass another compression level
 func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 	bound := CompressBound(len(src))
 	if cap(dst) >= bound {
@@ -97,6 +108,11 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 	return dst[:written], nil
 }
 
+// Decompress will decompress your payload into dst
+// If dst is already allocated, it will try and resize if too small
+// After some retries, it will switch to the slower stream API to be sure to be able
+// to decompress. Currently switches if ratio > 4*2**3=32
+// You can pass nil as dst and it will allocate the buffer for you
 func Decompress(dst, src []byte) ([]byte, error) {
 	decompress := func(dst, src []byte) ([]byte, error) {
 		cDst := unsafe.Pointer(&dst[0])
@@ -124,5 +140,9 @@ func Decompress(dst, src []byte) ([]byte, error) {
 		}
 		dst = make([]byte, len(dst)*2) // Grow buffer by 2
 	}
-	return []byte{}, ErrDstSizeTooSmall
+	// We failed getting a dst buffer of correct size, use stream API
+	reader := bytes.NewReader(src)
+	zstdReader := NewReader(reader, nil)
+	defer zstdReader.Close()
+	return ioutil.ReadAll(zstdReader)
 }

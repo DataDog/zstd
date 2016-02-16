@@ -25,9 +25,9 @@ func init() {
 func TestCompressBound(t *testing.T) {
 	tests := []int{0, 1, 2, 10, 456, 15468, 1313, 512, 54564654653}
 	for _, test := range tests {
-		if CompressBound(test) != c_CompressBound(test) {
+		if CompressBound(test) != cCompressBound(test) {
 			t.Fatalf("For %v, results are differents: %v != %v", test,
-				CompressBound(test), c_CompressBound(test))
+				CompressBound(test), cCompressBound(test))
 		}
 	}
 }
@@ -40,9 +40,9 @@ func TestErrorCode(t *testing.T) {
 	}
 	for _, test := range tests {
 		err := getError(test)
-		if err == nil && c_isError(test) {
+		if err == nil && cIsError(test) {
 			t.Fatalf("C function returned error for %v but ours did not", test)
-		} else if err != nil && !c_isError(test) {
+		} else if err != nil && !cIsError(test) {
 			t.Fatalf("Ours function returned error for %v but C one did not", test)
 		}
 	}
@@ -81,15 +81,23 @@ func TestCompressDecompress(t *testing.T) {
 }
 
 func TestTooSmall(t *testing.T) {
-	input := []byte("Hello World!")
+	var long bytes.Buffer
+	for i := 0; i < 10000; i++ {
+		long.Write([]byte("Hellow World!"))
+	}
+	input := long.Bytes()
 	out, err := Compress(nil, input)
 	if err != nil {
 		t.Fatalf("Error while compressing: %v", err)
 	}
 	rein := make([]byte, 1)
-	_, err = Decompress(rein, out)
-	if err != ErrDstSizeTooSmall {
-		t.Fatalf("We should have got a dst too small error, we got: %s", err)
+	// This should switch to the decompression stream to handle too small dst
+	rein, err = Decompress(rein, out)
+	if err != nil {
+		t.Fatalf("Failed decompressing: %s", err)
+	}
+	if string(input) != string(rein) {
+		t.Fatalf("Cannot compress and decompress: %s != %s", input, rein)
 	}
 }
 
