@@ -80,6 +80,13 @@ func TestCompressDecompress(t *testing.T) {
 	}
 }
 
+func TestEmptySlice(t *testing.T) {
+	_, err := Compress(nil, []byte{})
+	if err != ErrEmptySlice {
+		t.Fatalf("Did not get the correct error: %s", err)
+	}
+}
+
 func TestTooSmall(t *testing.T) {
 	var long bytes.Buffer
 	for i := 0; i < 10000; i++ {

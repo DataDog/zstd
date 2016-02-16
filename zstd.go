@@ -27,6 +27,7 @@ var (
 	ErrMaxSymbolValueTooLarge            = errors.New("Unsupported max possible Symbol Value : too large")
 	ErrMaxSymbolValueTooSmall            = errors.New("Specified maxSymbolValue is too small")
 	ErrDictionaryCorrupted               = errors.New("Dictionary is corrupted")
+	ErrEmptySlice                        = errors.New("Bytes slice is empty")
 
 	DefaultCompressionLevel = 5
 )
@@ -87,6 +88,9 @@ func Compress(dst, src []byte) ([]byte, error) {
 
 // CompressLevel is the same as Compress but you can pass another compression level
 func CompressLevel(dst, src []byte, level int) ([]byte, error) {
+	if len(src) == 0 {
+		return []byte{}, ErrEmptySlice
+	}
 	bound := CompressBound(len(src))
 	if cap(dst) >= bound {
 		dst = dst[0:bound] // Reuse dst buffer

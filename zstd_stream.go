@@ -67,6 +67,7 @@ func NewWriter(writer io.Writer, dict []byte, compressionLevel int) *Writer {
 		CompressionLevel: compressionLevel,
 		ctx:              ctx,
 		dict:             dict,
+		dstBuffer:        make([]byte, CompressBound(0)),
 		firstError:       err,
 		underlyingWriter: writer,
 	}
@@ -76,6 +77,9 @@ func NewWriter(writer io.Writer, dict []byte, compressionLevel int) *Writer {
 func (w *Writer) Write(p []byte) (int, error) {
 	if w.firstError != nil {
 		return 0, w.firstError
+	}
+	if len(p) == 0 {
+		return 0, nil
 	}
 	// Check if dstBuffer is enough
 	if len(w.dstBuffer) < CompressBound(len(p)) {

@@ -25,14 +25,16 @@ func testCompressionDecompression(t *testing.T, dict []byte, payload []byte) {
 	r := NewReader(rr, dict)
 	dst := make([]byte, len(payload)+10)
 	n, err := r.Read(dst)
-	failOnError(t, "Failed to read for decompression", err)
+	if err != io.EOF && n != 0 {
+		failOnError(t, "Failed to read for decompression", err)
+	}
 	dst = dst[:n]
 	if string(payload) != string(dst) {
 		t.Fatalf("Cannot compress and decompress: %s != %s", payload, dst)
 	}
 	// Check EOF
 	n, err = r.Read(dst)
-	if err != io.EOF {
+	if err != io.EOF && len(dst) > 0 { // If we want 0 bytes, that should work
 		t.Fatalf("Error should have been EOF, was %s instead: (%v bytes read: %s)", err, n, dst[:n])
 	}
 	failOnError(t, "Failed to close decompress object", r.Close())
@@ -40,6 +42,10 @@ func testCompressionDecompression(t *testing.T, dict []byte, payload []byte) {
 
 func TestStreamSimpleCompressionDecompression(t *testing.T) {
 	testCompressionDecompression(t, nil, []byte("Hello world!"))
+}
+
+func TestStreamEmptySlice(t *testing.T) {
+	testCompressionDecompression(t, nil, []byte{})
 }
 
 func TestZstdReaderLong(t *testing.T) {

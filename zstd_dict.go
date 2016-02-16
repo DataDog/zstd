@@ -26,7 +26,6 @@ func TrainFromData(resultDict []byte, data [][]byte) ([]byte, error) {
 		sizes = append(sizes, int64(len(point)))
 		dataBuffer = append(dataBuffer, point...)
 	}
-	dataBuffer = dataBuffer[0:len(dataBuffer)]
 
 	cDst := unsafe.Pointer(&resultDict[0])
 	cDstSize := C.size_t(len(resultDict))
