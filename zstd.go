@@ -1,7 +1,5 @@
 package zstd
 
-// The lib is going to be compiled in /tmp
-
 /*
 #include <zstd.h>
 #cgo LDFLAGS: /usr/local/lib/libzstd.a
@@ -27,7 +25,26 @@ var (
 	ErrMaxSymbolValueTooLarge            = errors.New("Unsupported max possible Symbol Value : too large")
 	ErrMaxSymbolValueTooSmall            = errors.New("Specified maxSymbolValue is too small")
 	ErrDictionaryCorrupted               = errors.New("Dictionary is corrupted")
+
+	DefaultCompressionLevel = 5
 )
+
+var codeToError = map[int]error{
+	-1: ErrGeneric,
+	-2: ErrPrefixUnknown,
+	-3: ErrFrameParameterUnsupported,
+	-4: ErrFrameParameterUnsupportedBy32bits,
+	-5: ErrInitMissing,
+	-6: ErrMemoryAllocation,
+	-7: ErrStageWrong,
+	-8: ErrDstSizeTooSmall,
+	-9: ErrSrcSizeWrong,
+	-10: ErrCorruptionDetected,
+	-11: ErrTableLogTooLarge,
+	-12: ErrMaxSymbolValueTooLarge,
+	-13: ErrMaxSymbolValueTooSmall,
+	-14: ErrDictionaryCorrupted,
+}
 
 // CompressBound returns the worst case size needed for a destination buffer
 // Implentation is taken from the C code
@@ -43,38 +60,7 @@ func c_CompressBound(srcSize int) int {
 // getError return whether the returned int signify an error
 // otherwise returns nil
 func getError(code int) error {
-	switch code {
-	case -1:
-		return ErrGeneric
-	case -2:
-		return ErrPrefixUnknown
-	case -3:
-		return ErrFrameParameterUnsupported
-	case -4:
-		return ErrFrameParameterUnsupportedBy32bits
-	case -5:
-		return ErrInitMissing
-	case -6:
-		return ErrMemoryAllocation
-	case -7:
-		return ErrStageWrong
-	case -8:
-		return ErrDstSizeTooSmall
-	case -9:
-		return ErrSrcSizeWrong
-	case -10:
-		return ErrCorruptionDetected
-	case -11:
-		return ErrTableLogTooLarge
-	case -12:
-		return ErrMaxSymbolValueTooLarge
-	case -13:
-		return ErrMaxSymbolValueTooSmall
-	case -14:
-		return ErrDictionaryCorrupted
-	}
-
-	return nil
+	return codeToError[code]
 }
 
 func c_isError(code int) bool {
@@ -85,8 +71,11 @@ func c_isError(code int) bool {
 	return false
 }
 
-// Compress allocate a byte array and compress the data
 func Compress(dst, src []byte) ([]byte, error) {
+	return CompressLevel(dst, src, DefaultCompressionLevel)
+}
+
+func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 	bound := CompressBound(len(src))
 	if cap(dst) >= bound {
 		dst = dst[0:bound] // Reuse dst buffer
@@ -97,12 +86,13 @@ func Compress(dst, src []byte) ([]byte, error) {
 	cDstCap := C.size_t(len(dst))
 	cSrc := unsafe.Pointer(&src[0])
 	cSrcSize := C.size_t(len(src))
+	cLevel := C.int(level)
 
-	cWritten := C.ZSTD_compress(cDst, cDstCap, cSrc, cSrcSize, 5)
+	cWritten := C.ZSTD_compress(cDst, cDstCap, cSrc, cSrcSize, cLevel)
 	written := int(cWritten)
 	// Check if the return is an Error code
-	if getError(written) != nil {
-		return nil, getError(written)
+	if err := getError(written); err != nil {
+		return nil, err
 	}
 	return dst[:written], nil
 }
@@ -117,8 +107,8 @@ func Decompress(dst, src []byte) ([]byte, error) {
 		cWritten := C.ZSTD_decompress(cDst, cDstCap, cSrc, cSrcSize)
 		written := int(cWritten)
 		// Check error
-		if getError(written) != nil {
-			return nil, getError(written)
+		if err := getError(written); err != nil {
+			return nil, err
 		}
 		return dst[:written], nil
 	}
