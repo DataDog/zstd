@@ -19,18 +19,30 @@ func testCompressionDecompression(t *testing.T, dict []byte, payload []byte) {
 	failOnError(t, "Failed writing to compress object", err)
 	failOnError(t, "Failed to close compress object", writer.Close())
 	out := w.Bytes()
-	t.Logf("Compressed payload: %v %v", out, w.Bytes())
+	t.Logf("Compressed %v -> %v bytes", len(payload), len(out))
+	failOnError(t, "Failed compressing", err)
 	rr := bytes.NewReader(out)
+	// Check that we can decompress with Decompress()
+	decompressed, err := Decompress(nil, out)
+	failOnError(t, "Failed to decompress with Decompress()", err)
+	if string(payload) != string(decompressed) {
+		t.Fatalf("Payload did not match, lengths: %v & %v", len(payload), len(decompressed))
+	}
+
 	// Decompress
 	r := NewReader(rr, dict)
-	dst := make([]byte, len(payload)+10)
+	dst := make([]byte, len(payload))
 	n, err := r.Read(dst)
-	if err != io.EOF && n != 0 {
+	if err != nil {
 		failOnError(t, "Failed to read for decompression", err)
 	}
 	dst = dst[:n]
-	if string(payload) != string(dst) {
-		t.Fatalf("Cannot compress and decompress: %s != %s", payload, dst)
+	if string(payload) != string(dst) { // Only print if we can print
+		if len(payload) < 100 && len(dst) < 100 {
+			t.Fatalf("Cannot compress and decompress: %s != %s", payload, dst)
+		} else {
+			t.Fatalf("Cannot compress and decompress (lengths: %v bytes & %v bytes)", len(payload), len(dst))
+		}
 	}
 	// Check EOF
 	n, err = r.Read(dst)
@@ -105,5 +117,54 @@ func TestStreamDict(t *testing.T) {
 		long.Write([]byte("Hellow World!"))
 	}
 	testCompressionDecompression(t, dict, long.Bytes())
+}
 
+func TestStreamRealPayload(t *testing.T) {
+	if raw == nil {
+		t.Skip(ErrNoPayloadEnv)
+	}
+	testCompressionDecompression(t, nil, raw)
+}
+
+func BenchmarkStreamCompression(b *testing.B) {
+	if raw == nil {
+		b.Fatal(ErrNoPayloadEnv)
+	}
+	var intermediate bytes.Buffer
+	w := NewWriter(&intermediate, nil, 5)
+	defer w.Close()
+	b.SetBytes(int64(len(raw)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := w.Write(raw)
+		if err != nil {
+			b.Fatalf("Failed writing to compress object: %s", err)
+		}
+	}
+}
+
+func BenchmarkStreamDecompression(b *testing.B) {
+	if raw == nil {
+		b.Fatal(ErrNoPayloadEnv)
+	}
+	compressed, err := Compress(nil, raw)
+	if err != nil {
+		b.Fatalf("Failed to compress: %s", err)
+	}
+	_, err = Decompress(nil, compressed)
+	if err != nil {
+		b.Fatalf("Problem: %s", err)
+	}
+
+	dst := make([]byte, len(raw))
+	b.SetBytes(int64(len(raw)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rr := bytes.NewReader(compressed)
+		r := NewReader(rr, nil)
+		_, err := r.Read(dst)
+		if err != nil {
+			b.Fatalf("Failed to decompress: %s", err)
+		}
+	}
 }

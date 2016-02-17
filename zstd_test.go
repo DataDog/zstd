@@ -2,6 +2,7 @@ package zstd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,6 +10,9 @@ import (
 )
 
 var raw []byte
+var (
+	ErrNoPayloadEnv = errors.New("PAYLOAD env was not set")
+)
 
 func init() {
 	var err error
@@ -108,9 +112,26 @@ func TestTooSmall(t *testing.T) {
 	}
 }
 
+func TestRealPayload(t *testing.T) {
+	if raw == nil {
+		t.Skip(ErrNoPayloadEnv)
+	}
+	dst, err := Compress(nil, raw)
+	if err != nil {
+		t.Fatalf("Failed to compress: %s", err)
+	}
+	rein, err := Decompress(nil, dst)
+	if err != nil {
+		t.Fatalf("Failed to decompress: %s", err)
+	}
+	if string(raw) != string(rein) {
+		t.Fatalf("compressed/decompressed payloads are not the same (lengths: %v & %v)", len(raw), len(rein))
+	}
+}
+
 func BenchmarkCompression(b *testing.B) {
 	if raw == nil {
-		panic(fmt.Errorf("You must provide a PAYLOAD env var"))
+		b.Fatal(ErrNoPayloadEnv)
 	}
 	dst := make([]byte, CompressBound(len(raw)))
 	b.SetBytes(int64(len(raw)))
@@ -125,15 +146,15 @@ func BenchmarkCompression(b *testing.B) {
 
 func BenchmarkDecompression(b *testing.B) {
 	if raw == nil {
-		panic(fmt.Errorf("You must provide a PAYLOAD env var"))
+		b.Fatal(ErrNoPayloadEnv)
 	}
 	src := make([]byte, len(raw))
-	b.SetBytes(int64(len(raw)))
 	dst, err := Compress(nil, raw)
 	if err != nil {
 		b.Fatalf("Failed compressing: %s", err)
 	}
 	b.Logf("Reduced from %v to %v", len(raw), len(dst))
+	b.SetBytes(int64(len(raw)))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		src2, err := Decompress(src, dst)
