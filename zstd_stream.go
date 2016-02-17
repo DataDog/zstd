@@ -35,19 +35,6 @@ func resize(in []byte, newSize int) []byte {
 	return append(in, make([]byte, toAdd)...)
 }
 
-func grow(in []byte, addSize int) []byte {
-	if in == nil {
-		return make([]byte, addSize)
-	}
-	total := len(in) + addSize
-	if cap(in) >= total { // Do not reallocate if not needed
-		return in[:total]
-	}
-	out := make([]byte, len(in)+addSize)
-	copy(out, in)
-	return out
-}
-
 // NewWriter creates a new object, that can optionally be initialized with
 // a precomputed dictionary. If dict is nil, compress without a dictionary
 // the underlying byte array should not be changed during the use of the object.

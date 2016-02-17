@@ -52,6 +52,25 @@ func testCompressionDecompression(t *testing.T, dict []byte, payload []byte) {
 	failOnError(t, "Failed to close decompress object", r.Close())
 }
 
+func TestResize(t *testing.T) {
+	if len(resize(nil, 129)) != 129 {
+		t.Fatalf("Cannot allocate new slice")
+	}
+	a := make([]byte, 1, 200)
+	b := resize(a, 129)
+	if &a[0] != &b[0] {
+		t.Fatalf("Address changed")
+	}
+	if len(b) != 129 {
+		t.Fatalf("Wrong size")
+	}
+	c := make([]byte, 5, 10)
+	d := resize(c, 129)
+	if len(d) != 129 {
+		t.Fatalf("Cannot allocate a new slice")
+	}
+}
+
 func TestStreamSimpleCompressionDecompression(t *testing.T) {
 	testCompressionDecompression(t, nil, []byte("Hello world!"))
 }
