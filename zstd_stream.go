@@ -48,8 +48,8 @@ func grow(in []byte, addSize int) []byte {
 	return out
 }
 
-// NewWriter creates a new object, that can optionnaly be initialized with
-// a precomputed dictionnary. If dict is nil, compress without a dictionnary
+// NewWriter creates a new object, that can optionally be initialized with
+// a precomputed dictionary. If dict is nil, compress without a dictionary
 // the underlying byte array should not be changed during the use of the object.
 // This will allow you to compress streams
 func NewWriter(writer io.Writer, dict []byte, compressionLevel int) *Writer {
@@ -69,7 +69,7 @@ func NewWriter(writer io.Writer, dict []byte, compressionLevel int) *Writer {
 		CompressionLevel: compressionLevel,
 		ctx:              ctx,
 		dict:             dict,
-		dstBuffer:        make([]byte, CompressBound(0)),
+		dstBuffer:        make([]byte, CompressBound(1024)),
 		firstError:       err,
 		underlyingWriter: writer,
 	}
