@@ -2,6 +2,7 @@ package zstd
 
 /*
 #include <zstd.h>
+#include <zstd_buffered.h>
 #cgo LDFLAGS: /usr/local/lib/libzstd.a
 */
 import "C"
@@ -12,16 +13,6 @@ import (
 	"unsafe"
 )
 
-type zstdParams struct {
-	SrcSize      uint64
-	WindowLog    uint32
-	ContentLog   uint32
-	HashLog      uint32
-	SearchLog    uint32
-	SearchLength uint32
-	Strategy     uint32
-}
-
 // Writer is a zstd object that implements the io.WriteCloser interface
 type Writer struct {
 	CompressionLevel int
@@ -31,6 +22,17 @@ type Writer struct {
 	dstBuffer        []byte
 	firstError       error
 	underlyingWriter io.Writer
+}
+
+func resize(in []byte, newSize int) []byte {
+	if in == nil {
+		return make([]byte, newSize)
+	}
+	if newSize <= cap(in) {
+		return in[:newSize]
+	}
+	toAdd := newSize - len(in)
+	return append(in, make([]byte, toAdd)...)
 }
 
 func grow(in []byte, addSize int) []byte {
@@ -124,13 +126,17 @@ func (w *Writer) Close() error {
 
 // Reader is a zstd object that implements io.ReadCloser
 type Reader struct {
-	ctx        *C.ZSTD_DCtx
-	dict       []byte
-	dstBuffer  []byte
-	firstError error
-
-	tempBuffer       bytes.Buffer
-	underlyingReader io.Reader
+	ctx                 *C.ZBUFF_DCtx
+	compressionBuffer   []byte
+	decompressionBuffer []byte
+	dict                []byte
+	firstError          error
+	// Reuse previous bytes from source that were not consumed
+	// Hopefully because we use recommended size, we will never need to use that
+	srcBuffer          bytes.Buffer
+	dstBuffer          bytes.Buffer
+	recommendedSrcSize int
+	underlyingReader   io.Reader
 }
 
 // NewReader creates a new object, that can optionnaly be initialized with
@@ -139,165 +145,114 @@ type Reader struct {
 // This will allow you to decompress streams
 func NewReader(reader io.Reader, dict []byte) *Reader {
 	var err error
-	ctx := C.ZSTD_createDCtx()
+	ctx := C.ZBUFF_createDCtx()
 	if dict == nil {
-		err = getError(int(C.ZSTD_decompressBegin(ctx)))
+		err = getError(int(C.ZBUFF_decompressInit(ctx)))
 	} else {
 		cDict := unsafe.Pointer(&dict[0])
 		cDictSize := C.size_t(len(dict))
-		err = getError(int(C.ZSTD_decompressBegin_usingDict(ctx, cDict, cDictSize)))
+		err = getError(int(C.ZBUFF_decompressInitDictionary(ctx, cDict, cDictSize)))
 	}
+	cSize := int(C.ZBUFF_recommendedDInSize())
+	dSize := int(C.ZBUFF_recommendedDOutSize())
+	if cSize <= 0 {
+		panic(fmt.Errorf("C function ZBUFF_recommendedDInSize() returned a wrong size: %v", cSize))
+	}
+	if dSize <= 0 {
+		panic(fmt.Errorf("C function ZBUFF_recommendedDOutSize() returned a weird size: %v", dSize))
+	}
+
+	compressionBuffer := make([]byte, cSize)
+	decompressionBuffer := make([]byte, dSize)
 	return &Reader{
-		ctx:              ctx,
-		dict:             dict,
-		firstError:       err,
-		underlyingReader: reader,
+		ctx:                 ctx,
+		dict:                dict,
+		compressionBuffer:   compressionBuffer,
+		decompressionBuffer: decompressionBuffer,
+		firstError:          err,
+		recommendedSrcSize:  cSize,
+		underlyingReader:    reader,
 	}
 }
 
 // Close frees the allocated C objects
 func (r *Reader) Close() error {
-	return getError(int(C.ZSTD_freeDCtx(r.ctx)))
-}
-
-// initBuffer must be called at first call of Read to initialize dst buffer,
-// it will read a bit of data from the reader while reading headers and returns
-// that too so you can also decompress that piece of data
-func (r *Reader) initBuffer() ([]byte, error) {
-	readBuf := make([]byte, 100) // We will try to read max 100 bytes of data first
-	params := zstdParams{}
-	cParams := (*C.ZSTD_parameters)(unsafe.Pointer(&params))
-	read, err := r.underlyingReader.Read(readBuf)
-	if err != nil && err != io.EOF {
-		return []byte{}, fmt.Errorf("failed to read from underlying reader: %s", err)
-	}
-
-	success := false
-	// Try 3 times to read the params buffer, readjusting the size when necessary
-	for i := 0; i < 3; i++ {
-		cSrc := unsafe.Pointer(&readBuf[0])
-		cSrcSize := C.size_t(read)
-		// retCode: == 0 if the write to params was successful
-		// > 0 indicates the number of additional bytes it needs to successfully populate params
-		// < 0 is an error code
-		retCode := int(C.ZSTD_getFrameParams(cParams, cSrc, cSrcSize))
-		if retCode == 0 {
-			success = true
-			break
-		} else if retCode < 0 {
-			return readBuf[:read], getError(retCode)
-		}
-		// Reread with more data
-		readBuf = grow(readBuf, retCode)
-		read2, err := r.underlyingReader.Read(readBuf[read:]) // Read the remaining bytes
-		read += read2
-		if err != nil && err != io.EOF {
-			return readBuf[:read], fmt.Errorf("failed to read from underlying reader: %s", err)
-		}
-		if err == io.EOF && read2 == 0 {
-			return readBuf[:read], fmt.Errorf("Missing headers ?")
-		}
-	}
-	if !success {
-		return readBuf[:read], fmt.Errorf("failed to allocate buffer to read params")
-	}
-	// Allocate buffer
-	toAllocate := 1 << params.WindowLog
-	r.dstBuffer = make([]byte, toAllocate)
-	return readBuf[:read], nil
-}
-
-// Called the first time ever of Read() to init dst buffer and process as few data as
-// possible from that header. Return 0 if it did not have enough data to write to the
-// caller
-func (r *Reader) readInit(p []byte) (int, error) {
-	if r.dstBuffer != nil {
-		panic(fmt.Errorf("ReadInit should only be called once !"))
-	}
-	readBuf, err := r.initBuffer()
-	if err != nil {
-		return 0, fmt.Errorf("failed to allocate buffer: %s", err)
-	}
-	for len(readBuf) > 0 { // Decompress until we are synced with input
-		cToRead := C.ZSTD_nextSrcSizeToDecompress(r.ctx)
-		toRead := int(cToRead)
-		if len(readBuf) < toRead { // Read the few more needed bytes
-			previousSize := len(readBuf)
-			readBuf = grow(readBuf, toRead-len(readBuf))
-			n, err := r.underlyingReader.Read(readBuf[previousSize:])
-			if err != nil {
-				return 0, fmt.Errorf("failed to read from underlying reader: %s", err)
-			}
-			if n != (toRead - previousSize) {
-				return 0, fmt.Errorf("failed to read enough bytes from reader: %v != %v", n, (toRead - previousSize))
-			}
-		}
-		// Decompress and append to tempBuffer
-		cDst := unsafe.Pointer(&r.dstBuffer[0])
-		cDstSize := C.size_t(len(r.dstBuffer))
-		cSrc := unsafe.Pointer(&readBuf[0])
-		retCode := int(C.ZSTD_decompressContinue(r.ctx, cDst, cDstSize, cSrc, cToRead))
-		if err := getError(retCode); err != nil {
-			return 0, err
-		}
-		_, err := r.tempBuffer.Write(r.dstBuffer[:retCode])
-		if err != nil {
-			return 0, fmt.Errorf("failed to write to temporary buffer: %s", err)
-		}
-		readBuf = readBuf[toRead:]
-	}
-	if r.tempBuffer.Len() >= len(p) { // We can directly copy from buffer
-		return r.tempBuffer.Read(p)
-	}
-	return 0, nil // Populated tempBuffer with initial data but it's still not enough
+	return getError(int(C.ZBUFF_freeDCtx(r.ctx)))
 }
 
 // Read satifies the io.Reader interface
 func (r *Reader) Read(p []byte) (int, error) {
-	if r.firstError != nil {
-		return 0, r.firstError
-	}
-	if r.tempBuffer.Len() >= len(p) { // We can directly copy from buffer
-		return r.tempBuffer.Read(p)
+	var err error
+
+	// If we already have enough bytes, return
+	if r.dstBuffer.Len() >= len(p) {
+		return r.dstBuffer.Read(p)
 	}
 
-	if r.dstBuffer == nil { // Not inited yet, we need to know how much space we need to decode
-		n, err := r.readInit(p)
-		if err != nil {
-			return 0, fmt.Errorf("failed to init: %s", err)
+	for r.dstBuffer.Len() < len(p) {
+		// Populate src
+		src := r.compressionBuffer
+		if r.srcBuffer.Len() >= len(src) { // We don't need to read anything from src
+			_, err := r.srcBuffer.Read(src)
+			if err != nil {
+				return 0, fmt.Errorf("failed to read from srcBuffer: %s", err)
+			}
+		} else { // We need to read some data
+			n, err := io.ReadFull(r.underlyingReader, src)
+			if err == io.EOF {
+				if r.srcBuffer.Len() == 0 { // No more things to do
+					break
+				}
+			}
+			if err != nil && err != io.ErrUnexpectedEOF {
+				return 0, fmt.Errorf("failed to read underlying reader: %s", err)
+			}
+			// Create buffer
+			if r.srcBuffer.Len() == 0 { // Fast path: do not use srcBuffer
+				src = src[:n]
+			} else {
+				_, err = r.srcBuffer.Write(src[:n])
+				if err != nil {
+					return 0, fmt.Errorf("failed to write to temporary src buffer: %s", err)
+				}
+				n, err = r.srcBuffer.Read(src)
+				if err != nil {
+					return 0, fmt.Errorf("failed to read from temporary src buffer: %s", err)
+				}
+				src = src[:n]
+			}
 		}
-		if n > 0 {
-			return n, err
-		}
-	}
-	// We need to read more
-	for r.tempBuffer.Len() < len(p) {
-		cToRead := C.ZSTD_nextSrcSizeToDecompress(r.ctx)
-		if int(cToRead) == 0 { // End of stream
-			return r.tempBuffer.Read(p)
-		}
-		src := make([]byte, int(cToRead))
-		n, err := r.underlyingReader.Read(src)
-		if err == io.EOF { // We do not have anything to process anymore
-			if n == 0 { // End of input, return eveything we have
-				return r.tempBuffer.Read(p)
-			} // Else do nothing, we still need to process the remaining bytes
-		} else if err != nil {
-			return 0, fmt.Errorf("failed to read underlying buffer: %s", err)
-		}
-		// Decompress and append to tempBuffer
-		cDst := unsafe.Pointer(&r.dstBuffer[0])
-		cDstSize := C.size_t(len(r.dstBuffer))
+
+		// C code
 		cSrc := unsafe.Pointer(&src[0])
-		retCode := int(C.ZSTD_decompressContinue(r.ctx, cDst, cDstSize, cSrc, cToRead))
-		if err := getError(retCode); err != nil {
-			return 0, err
+		cSrcSize := C.size_t(len(src))
+		cDst := unsafe.Pointer(&r.decompressionBuffer[0])
+		cDstSize := C.size_t(len(r.decompressionBuffer))
+		retCode := int(C.ZBUFF_decompressContinue(r.ctx, cDst, &cDstSize, cSrc, &cSrcSize))
+		if err = getError(retCode); err != nil {
+			return 0, fmt.Errorf("failed to decompress: %s", err)
 		}
-		_, err = r.tempBuffer.Write(r.dstBuffer[:retCode])
+
+		// Put everything in buffer
+		if int(cSrcSize) < len(src) { // We did not read everything, put in buffer
+			toSave := src[int(cSrcSize):]
+			_, err = r.srcBuffer.Write(toSave)
+			if err != nil {
+				return 0, fmt.Errorf("failed to store temporary src buffer: %s", err)
+			}
+		}
+		_, err = r.dstBuffer.Write(r.decompressionBuffer[:int(cDstSize)])
 		if err != nil {
-			return 0, fmt.Errorf("failed to write to temporary buffer: %s", err)
+			return 0, fmt.Errorf("failed to store temporary result: %s", err)
+		}
+
+		// Resize buffers
+		if retCode > 0 { // Hint for next src buffer size
+			r.compressionBuffer = resize(r.compressionBuffer, retCode)
+		} else { // Reset to recommended size
+			r.compressionBuffer = resize(r.compressionBuffer, r.recommendedSrcSize)
 		}
 	}
-
-	return r.tempBuffer.Read(p)
+	// Write to dst
+	return r.dstBuffer.Read(p)
 }
