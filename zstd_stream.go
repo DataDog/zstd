@@ -182,7 +182,6 @@ func (r *Reader) Close() error {
 
 // Read satifies the io.Reader interface
 func (r *Reader) Read(p []byte) (int, error) {
-	var err error
 
 	// If we already have enough bytes, return
 	if r.dstBuffer.Len() >= len(p) {
@@ -192,36 +191,17 @@ func (r *Reader) Read(p []byte) (int, error) {
 	for r.dstBuffer.Len() < len(p) {
 		// Populate src
 		src := r.compressionBuffer
-		if r.srcBuffer.Len() >= len(src) { // We don't need to read anything from src
-			_, err := r.srcBuffer.Read(src)
-			if err != nil {
-				return 0, fmt.Errorf("failed to read from srcBuffer: %s", err)
-			}
-		} else { // We need to read some data
-			n, err := io.ReadFull(r.underlyingReader, src)
-			if err == io.EOF {
-				if r.srcBuffer.Len() == 0 { // No more things to do
-					break
-				}
-			}
-			if err != nil && err != io.ErrUnexpectedEOF {
-				return 0, fmt.Errorf("failed to read underlying reader: %s", err)
-			}
-			// Create buffer
-			if r.srcBuffer.Len() == 0 { // Fast path: do not use srcBuffer
-				src = src[:n]
-			} else {
-				_, err = r.srcBuffer.Write(src[:n])
-				if err != nil {
-					return 0, fmt.Errorf("failed to write to temporary src buffer: %s", err)
-				}
-				n, err = r.srcBuffer.Read(src)
-				if err != nil {
-					return 0, fmt.Errorf("failed to read from temporary src buffer: %s", err)
-				}
-				src = src[:n]
-			}
+		reader := r.underlyingReader
+		if r.srcBuffer.Len() != 0 {
+			reader = io.MultiReader(&r.srcBuffer, r.underlyingReader)
 		}
+		n, err := io.ReadFull(reader, src)
+		if err == io.EOF {
+			break
+		} else if err != nil && err != io.ErrUnexpectedEOF {
+			return 0, fmt.Errorf("failed to read from underlying reader: %s", err)
+		}
+		src = src[:n]
 
 		// C code
 		cSrc := unsafe.Pointer(&src[0])
