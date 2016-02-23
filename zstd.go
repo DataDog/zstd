@@ -1,8 +1,7 @@
 package zstd
 
 /*
-#include <zstd.h>
-#cgo LDFLAGS: /usr/local/lib/libzstd.a
+#include "zstd.h"
 */
 import "C"
 import (
@@ -78,10 +77,11 @@ func cIsError(code int) bool {
 	return false
 }
 
-// Compress compresses the byte array in src and write to dst
-// If you already have a buffer laying, it's better to pass it as dst to reuse it
-// If the buffer is too small, it will automacally be resized and given back as a return
-// You can pass nil as dst, this will allocate the necessary size (CompressBound(src))
+// Compress compresses the byte array given in src and writes it to dst.
+// If you already have a buffer allocated, you can pass it to prevent allocation
+// If not, you can pass nil as dst.
+// If the buffer is too small, it will be reallocated, resized, and returned bu the function
+// If dst is nil, this will allocate the worst case size (CompressBound(src))
 func Compress(dst, src []byte) ([]byte, error) {
 	return CompressLevel(dst, src, DefaultCompressionLevel)
 }
@@ -112,11 +112,12 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 	return dst[:written], nil
 }
 
-// Decompress will decompress your payload into dst
-// If dst is already allocated, it will try and resize if too small
-// After some retries, it will switch to the slower stream API to be sure to be able
-// to decompress. Currently switches if ratio > 4*2**3=32
-// You can pass nil as dst and it will allocate the buffer for you
+// Decompress will decompress your payload into dst.
+// If you already have a buffer allocated, you can pass it to prevent allocation
+// If not, you can pass nil as dst (allocates a 4*src size as default).
+// If the buffer is too small, it will retry 3 times by doubling the dst size
+// After max retries, it will switch to the slower stream API to be sure to be able
+// to decompress. Currently switches if compression ratio > 4*2**3=32.
 func Decompress(dst, src []byte) ([]byte, error) {
 	decompress := func(dst, src []byte) ([]byte, error) {
 		cDst := unsafe.Pointer(&dst[0])

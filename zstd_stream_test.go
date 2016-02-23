@@ -118,26 +118,6 @@ func TestStreamCompressionDecompression(t *testing.T) {
 	failOnError(t, "Failed to close decompress object", r.Close())
 }
 
-func TestStreamDict(t *testing.T) {
-	// Build dict
-	dict := make([]byte, 32*1024*1024) // 32 KB dicionnary, way overkill
-	dict, err := TrainFromData(dict, [][]byte{
-		[]byte("Hello nice world!"),
-		[]byte("It's a very nice world!"),
-	})
-	if err != nil {
-		t.Fatalf("Failed creating dict: %s", err)
-	}
-	// Simple
-	testCompressionDecompression(t, dict, []byte("Hello world!"))
-	// Long
-	var long bytes.Buffer
-	for i := 0; i < 10000; i++ {
-		long.Write([]byte("Hellow World!"))
-	}
-	testCompressionDecompression(t, dict, long.Bytes())
-}
-
 func TestStreamRealPayload(t *testing.T) {
 	if raw == nil {
 		t.Skip(ErrNoPayloadEnv)

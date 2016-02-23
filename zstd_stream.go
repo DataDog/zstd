@@ -1,9 +1,8 @@
 package zstd
 
 /*
-#include <zstd.h>
-#include <zstd_buffered.h>
-#cgo LDFLAGS: /usr/local/lib/libzstd.a
+#include "zstd.h"
+#include "zstd_buffered.h"
 */
 import "C"
 import (
@@ -35,10 +34,10 @@ func resize(in []byte, newSize int) []byte {
 	return append(in, make([]byte, toAdd)...)
 }
 
-// NewWriter creates a new object, that can optionally be initialized with
-// a precomputed dictionary. If dict is nil, compress without a dictionary
-// the underlying byte array should not be changed during the use of the object.
-// This will allow you to compress streams
+// NewWriter creates a new object that can optionally be initialized with
+// a precomputed dictionary. If dict is nil, compress without a dictionary.
+// The dictionary array should not be changed during the use of this object.
+// You MUST CALL Close() to write the last bytes of a zstd stream and free C objects.
 func NewWriter(writer io.Writer, dict []byte, compressionLevel int) *Writer {
 	var err error
 	ctx := C.ZSTD_createCCtx()
@@ -62,7 +61,7 @@ func NewWriter(writer io.Writer, dict []byte, compressionLevel int) *Writer {
 	}
 }
 
-// Write compress the input data and write it to the underlying writer
+// Write compresses the input data and write it to the underlying writer
 func (w *Writer) Write(p []byte) (int, error) {
 	if w.firstError != nil {
 		return 0, w.firstError
@@ -129,7 +128,8 @@ type Reader struct {
 // NewReader creates a new object, that can optionnaly be initialized with
 // a precomputed dictionnary. If dict is nil, compress without a dictionnary
 // the underlying byte array should not be changed during the use of the object.
-// This will allow you to decompress streams
+// The dictionary array should not be changed during the use of this object.
+// You MUST CALL Close() to free C objects.
 func NewReader(reader io.Reader, dict []byte) *Reader {
 	var err error
 	ctx := C.ZBUFF_createDCtx()
