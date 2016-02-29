@@ -97,13 +97,14 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 	} else {
 		dst = make([]byte, bound)
 	}
-	cDst := unsafe.Pointer(&dst[0])
-	cDstCap := C.size_t(len(dst))
-	cSrc := unsafe.Pointer(&src[0])
-	cSrcSize := C.size_t(len(src))
-	cLevel := C.int(level)
 
-	cWritten := C.ZSTD_compress(cDst, cDstCap, cSrc, cSrcSize, cLevel)
+	cWritten := C.ZSTD_compress(
+		unsafe.Pointer(&dst[0]),
+		C.size_t(len(dst)),
+		unsafe.Pointer(&src[0]),
+		C.size_t(len(src)),
+		C.int(level))
+
 	written := int(cWritten)
 	// Check if the return is an Error code
 	if err := getError(written); err != nil {
@@ -120,12 +121,13 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 // to decompress. Currently switches if compression ratio > 4*2**3=32.
 func Decompress(dst, src []byte) ([]byte, error) {
 	decompress := func(dst, src []byte) ([]byte, error) {
-		cDst := unsafe.Pointer(&dst[0])
-		cDstCap := C.size_t(len(dst))
-		cSrc := unsafe.Pointer(&src[0])
-		cSrcSize := C.size_t(len(src))
 
-		cWritten := C.ZSTD_decompress(cDst, cDstCap, cSrc, cSrcSize)
+		cWritten := C.ZSTD_decompress(
+			unsafe.Pointer(&dst[0]),
+			C.size_t(len(dst)),
+			unsafe.Pointer(&src[0]),
+			C.size_t(len(src)))
+
 		written := int(cWritten)
 		// Check error
 		if err := getError(written); err != nil {

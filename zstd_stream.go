@@ -41,14 +41,16 @@ func resize(in []byte, newSize int) []byte {
 func NewWriter(writer io.Writer, dict []byte, compressionLevel int) *Writer {
 	var err error
 	ctx := C.ZSTD_createCCtx()
-	cCompression := C.int(compressionLevel)
 
 	if dict == nil {
-		err = getError(int(C.ZSTD_compressBegin(ctx, cCompression)))
+		err = getError(int(C.ZSTD_compressBegin(ctx,
+			C.int(compressionLevel))))
 	} else {
-		cDict := unsafe.Pointer(&dict[0])
-		cDictSize := C.size_t(len(dict))
-		err = getError(int(C.ZSTD_compressBegin_usingDict(ctx, cDict, cDictSize, cCompression)))
+		err = getError(int(C.ZSTD_compressBegin_usingDict(
+			ctx,
+			unsafe.Pointer(&dict[0]),
+			C.size_t(len(dict)),
+			C.int(compressionLevel))))
 	}
 
 	return &Writer{
@@ -73,12 +75,14 @@ func (w *Writer) Write(p []byte) (int, error) {
 	if len(w.dstBuffer) < CompressBound(len(p)) {
 		w.dstBuffer = make([]byte, CompressBound(len(p)))
 	}
-	cDst := unsafe.Pointer(&w.dstBuffer[0])
-	cDstSize := C.size_t(len(w.dstBuffer))
-	cSrc := unsafe.Pointer(&p[0])
-	cSrcSize := C.size_t(len(p))
 
-	retCode := C.ZSTD_compressContinue(w.ctx, cDst, cDstSize, cSrc, cSrcSize)
+	retCode := C.ZSTD_compressContinue(
+		w.ctx,
+		unsafe.Pointer(&w.dstBuffer[0]),
+		C.size_t(len(w.dstBuffer)),
+		unsafe.Pointer(&p[0]),
+		C.size_t(len(p)))
+
 	if err := getError(int(retCode)); err != nil {
 		return 0, err
 	}
@@ -90,9 +94,11 @@ func (w *Writer) Write(p []byte) (int, error) {
 
 // Close flushes the buffer and frees everything
 func (w *Writer) Close() error {
-	cDst := unsafe.Pointer(&w.dstBuffer[0])
-	cDstSize := C.size_t(len(w.dstBuffer))
-	retCode := C.ZSTD_compressEnd(w.ctx, cDst, cDstSize)
+	retCode := C.ZSTD_compressEnd(
+		w.ctx,
+		unsafe.Pointer(&w.dstBuffer[0]),
+		C.size_t(len(w.dstBuffer)))
+
 	if err := getError(int(retCode)); err != nil {
 		return err
 	}
@@ -136,9 +142,10 @@ func NewReader(reader io.Reader, dict []byte) *Reader {
 	if dict == nil {
 		err = getError(int(C.ZBUFF_decompressInit(ctx)))
 	} else {
-		cDict := unsafe.Pointer(&dict[0])
-		cDictSize := C.size_t(len(dict))
-		err = getError(int(C.ZBUFF_decompressInitDictionary(ctx, cDict, cDictSize)))
+		err = getError(int(C.ZBUFF_decompressInitDictionary(
+			ctx,
+			unsafe.Pointer(&dict[0]),
+			C.size_t(len(dict)))))
 	}
 	cSize := int(C.ZBUFF_recommendedDInSize())
 	dSize := int(C.ZBUFF_recommendedDOutSize())
@@ -191,11 +198,15 @@ func (r *Reader) Read(p []byte) (int, error) {
 		src = src[:n]
 
 		// C code
-		cSrc := unsafe.Pointer(&src[0])
 		cSrcSize := C.size_t(len(src))
-		cDst := unsafe.Pointer(&r.decompressionBuffer[0])
 		cDstSize := C.size_t(len(r.decompressionBuffer))
-		retCode := int(C.ZBUFF_decompressContinue(r.ctx, cDst, &cDstSize, cSrc, &cSrcSize))
+		retCode := int(C.ZBUFF_decompressContinue(
+			r.ctx,
+			unsafe.Pointer(&r.decompressionBuffer[0]),
+			&cDstSize,
+			unsafe.Pointer(&src[0]),
+			&cSrcSize))
+
 		if err = getError(retCode); err != nil {
 			return 0, fmt.Errorf("failed to decompress: %s", err)
 		}
