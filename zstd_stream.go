@@ -89,7 +89,14 @@ func (w *Writer) Write(p []byte) (int, error) {
 	written := int(retCode)
 
 	// Write to underlying buffer
-	return w.underlyingWriter.Write(w.dstBuffer[:written])
+	_, err := w.underlyingWriter.Write(w.dstBuffer[:written])
+
+	// Same behaviour as zlib, we can't know how much data we wrote, only
+	// if there was an error
+	if err != nil {
+		return 0, err
+	}
+	return len(p), err
 }
 
 // Close flushes the buffer and frees everything
