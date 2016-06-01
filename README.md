@@ -1,13 +1,14 @@
 # Zstd Go Wrapper
 
-[Homepage](https://github.com/Cyan4973/zstd)
-DD Maintainer: Vianney Tran
+[C Zstd Homepage](https://github.com/Cyan4973/zstd)
+
 The current headers and C files are from *v0.5.0* (Commit [201433a](https://github.com/Cyan4973/zstd/commits/201433a7f713af056cc7ea32624eddefb55e10c8)).
-This version has been tested on staging/prod data and is safe for use.
+
+This version has been tested and used in Datadog production environment and is safe for use.
 
 ## Usage
 
-There is two main API: simple compress/decompress and a streming API (reader/writer)
+There are two main API: simple Compress/Decompress and a streaming API (reader/writer)
 
 ### Simple `Compress/Decompress`
 
@@ -73,7 +74,7 @@ The guy behind Zstd is the guy behind LZ4. It's a pretty new algorithm supposed 
 the spot of Zlib.
 So far, the ratio is always better than Zlib, it compresses somewhat faster but it decompress at 3-4x the speed of Zlib
 
-Compression of a 7Mb pdf zstd (thsi wrapper) vs czlib:
+Compression of a 7Mb pdf zstd (this wrapper) vs [czlib](https://github.com/DataDog/czlib):
 ```
 BenchmarkCompression           5     221056624 ns/op      67.34 MB/s
 BenchmarkDecompression       100      18370416 ns/op     810.32 MB/s
@@ -84,7 +85,7 @@ BenchmarkFzlibDecompress          20      81195246 ns/op     183.33 MB/s
 
 Ratio is also better by a margin of ~20%.
 Compression speed is always better than zlib on all the payloads we tested;
-However with the current version, czlib has a faster decompression for small payloads (it's highly optimized for it):
+However with the current version, [czlib](https://github.com/DataDog/czlib) has a faster decompression for small payloads (it's highly optimized for it):
 ```
 Testing with size: 11... czlib: 8.97 MB/s, zstd: 3.26 MB/s
 Testing with size: 27... czlib: 23.3 MB/s, zstd: 8.22 MB/s
@@ -99,11 +100,10 @@ Testing with size: 20121... czlib: 197.43 MB/s, zstd: 1339.11 MB/s
 Testing with size: 45951... czlib: 201.62 MB/s, zstd: 1951.57 MB/s
 ```
 
-zstd starts tos hine with payloads > 1KB
+zstd starts to shine with payloads > 1KB
 
 ### Stability - Current state: STABLE
 
 The C library seems to be pretty stable and according to the author has been tested and fuzzed.
 
-For the Go wrapper, the test cover most usual cases and we have succesfully tested it on all (soon)
-staging and prod data.
+For the Go wrapper, the test cover most usual cases and we have succesfully tested it on all staging and prod data.
