@@ -11,82 +11,101 @@ import (
 	"unsafe"
 )
 
-var (
-	ErrGeneric                           = errors.New("Error (generic)")
-	ErrPrefixUnknown                     = errors.New("Unknown frame descriptor")
-	ErrFrameParameterUnsupported         = errors.New("Unsupported frame parameter")
-	ErrFrameParameterUnsupportedBy32bits = errors.New("Frame parameter unsupported in 32-bits mode")
-	ErrInitMissing                       = errors.New("Context should be init first")
-	ErrMemoryAllocation                  = errors.New("Allocation error : not enough memory")
-	ErrStageWrong                        = errors.New("Operation not authorized at current processing stage")
-	ErrDstSizeTooSmall                   = errors.New("Destination buffer is too small")
-	ErrSrcSizeWrong                      = errors.New("Src size incorrect")
-	ErrCorruptionDetected                = errors.New("Corrupted block detected")
-	ErrTableLogTooLarge                  = errors.New("tableLog requires too much memory")
-	ErrMaxSymbolValueTooLarge            = errors.New("Unsupported max possible Symbol Value : too large")
-	ErrMaxSymbolValueTooSmall            = errors.New("Specified maxSymbolValue is too small")
-	ErrDictionaryCorrupted               = errors.New("Dictionary is corrupted")
-	ErrEmptySlice                        = errors.New("Bytes slice is empty")
+// ErrorCode is an error returned by the zstd library.
+type ErrorCode int
 
-	DefaultCompressionLevel = 5
-)
-
-var codeToError = map[int]error{
-	-1:  ErrGeneric,
-	-2:  ErrPrefixUnknown,
-	-3:  ErrFrameParameterUnsupported,
-	-4:  ErrFrameParameterUnsupportedBy32bits,
-	-5:  ErrInitMissing,
-	-6:  ErrMemoryAllocation,
-	-7:  ErrStageWrong,
-	-8:  ErrDstSizeTooSmall,
-	-9:  ErrSrcSizeWrong,
-	-10: ErrCorruptionDetected,
-	-11: ErrTableLogTooLarge,
-	-12: ErrMaxSymbolValueTooLarge,
-	-13: ErrMaxSymbolValueTooSmall,
-	-14: ErrDictionaryCorrupted,
+func (e ErrorCode) Error() string {
+	switch int(e) {
+	case -1:
+		return "Error (generic)"
+	case -2:
+		return "Unknown frame descriptor"
+	case -3:
+		return "Unsupported frame parameter"
+	case -4:
+		return "Frame parameter unsupported in 32-bits mode"
+	case -5:
+		return "Context should be init first"
+	case -6:
+		return "Allocation error: not enough memory"
+	case -7:
+		return "Operation not authorized at current processing stage"
+	case -8:
+		return "Destination buffer is too small"
+	case -9:
+		return "Src size incorrect"
+	case -10:
+		return "Corrupted block detected"
+	case -11:
+		return "tableLog requires too much memory"
+	case -12:
+		return "Unsupported max possible Symbol Value : too large"
+	case -13:
+		return "Specified maxSymbolValue is too small"
+	case -14:
+		return "Dictionary is corrupted"
+	default:
+		return ""
+	}
 }
 
-// CompressBound returns the worst case size needed for a destination buffer
-// You can generate a dst buffer of this size before calling Compress to skip
-// its allocation
-// Scenario would be:
-// Keep a buffer arround, reallocate for each payload if CompressBound(payload) > len(buf)
-// Implentation is taken from the C code
+const (
+	BestSpeed       = 1
+	BestCompression = 20
+)
+
+var (
+	ErrGeneric                           ErrorCode = -1
+	ErrPrefixUnknown                     ErrorCode = -2
+	ErrFrameParameterUnsupported         ErrorCode = -3
+	ErrFrameParameterUnsupportedBy32bits ErrorCode = -4
+	ErrInitMissing                       ErrorCode = -5
+	ErrMemoryAllocation                  ErrorCode = -6
+	ErrStageWrong                        ErrorCode = -7
+	ErrDstSizeTooSmall                   ErrorCode = -8
+	ErrSrcSizeWrong                      ErrorCode = -9
+	ErrCorruptionDetected                ErrorCode = -10
+	ErrTableLogTooLarge                  ErrorCode = -11
+	ErrMaxSymbolValueTooLarge            ErrorCode = -12
+	ErrMaxSymbolValueTooSmall            ErrorCode = -13
+	ErrDictionaryCorrupted               ErrorCode = -14
+	ErrEmptySlice                                  = errors.New("Bytes slice is empty")
+
+	DefaultCompression = 5
+)
+
+// CompressBound returns the worst case size needed for a destination buffer,
+// which can be used to preallocate a destination buffer or select a previously
+// allocated buffer from a pool.
 func CompressBound(srcSize int) int {
 	return 512 + srcSize + (srcSize >> 7) + 12
 }
 
-// Internal call to the C function to check that our implentation match
+// cCompressBound is a cgo call to check the go implementation above against the c code.
 func cCompressBound(srcSize int) int {
 	return int(C.ZSTD_compressBound(C.size_t(srcSize)))
 }
 
-// getError return whether the returned int indicates an error
-// otherwise returns nil
+// getError returns an error for the return code, or nil if it's not an error
 func getError(code int) error {
-	return codeToError[code]
+	if code < 0 && code >= -14 {
+		return ErrorCode(code)
+	}
+	return nil
 }
 
 func cIsError(code int) bool {
-	isErr := int(C.ZSTD_isError(C.size_t(code)))
-	if isErr != 0 {
-		return true
-	}
-	return false
+	return int(C.ZSTD_isError(C.size_t(code))) != 0
 }
 
-// Compress compresses the byte array given in src and writes it to dst.
-// If you already have a buffer allocated, you can pass it to prevent allocation
-// If not, you can pass nil as dst.
-// If the buffer is too small, it will be reallocated, resized, and returned bu the function
-// If dst is nil, this will allocate the worst case size (CompressBound(src))
+// Compress src into dst.  If you have a buffer to use, you can pass it to
+// prevent allocation.  If it is too small, or if nil is passed, a new buffer
+// will be allocated and returned.
 func Compress(dst, src []byte) ([]byte, error) {
-	return CompressLevel(dst, src, DefaultCompressionLevel)
+	return CompressLevel(dst, src, DefaultCompression)
 }
 
-// CompressLevel is the same as Compress but you can pass another compression level
+// CompressLevel is the same as Compress but you can pass a compression level
 func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 	if len(src) == 0 {
 		return []byte{}, ErrEmptySlice
@@ -113,12 +132,12 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 	return dst[:written], nil
 }
 
-// Decompress will decompress your payload into dst.
-// If you already have a buffer allocated, you can pass it to prevent allocation
-// If not, you can pass nil as dst (allocates a 4*src size as default).
-// If the buffer is too small, it will retry 3 times by doubling the dst size
-// After max retries, it will switch to the slower stream API to be sure to be able
-// to decompress. Currently switches if compression ratio > 4*2**3=32.
+// Decompress src into dst.  If you have a buffer to use, you can pass it to
+// prevent allocation.  If it is too small, or if nil is passed, a new buffer
+// will be allocated and returned.  By default, len(src)  * 4 is allocated.
+// If the buffer is too small, it will retry with a 2x sized dst buffer up to
+// 3 times before falling back to the slower stream API (ie. if the compression
+// ratio is 32).
 func Decompress(dst, src []byte) ([]byte, error) {
 	decompress := func(dst, src []byte) ([]byte, error) {
 
@@ -148,8 +167,7 @@ func Decompress(dst, src []byte) ([]byte, error) {
 		dst = make([]byte, len(dst)*2) // Grow buffer by 2
 	}
 	// We failed getting a dst buffer of correct size, use stream API
-	reader := bytes.NewReader(src)
-	zstdReader := NewReader(reader, nil)
-	defer zstdReader.Close()
-	return ioutil.ReadAll(zstdReader)
+	r := NewReader(bytes.NewReader(src))
+	defer r.Close()
+	return ioutil.ReadAll(r)
 }

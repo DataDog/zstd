@@ -14,7 +14,7 @@ func failOnError(t *testing.T, msg string, err error) {
 
 func testCompressionDecompression(t *testing.T, dict []byte, payload []byte) {
 	var w bytes.Buffer
-	writer := NewWriter(&w, dict, 5)
+	writer := NewWriterLevelDict(&w, DefaultCompression, dict)
 	_, err := writer.Write(payload)
 	failOnError(t, "Failed writing to compress object", err)
 	failOnError(t, "Failed to close compress object", writer.Close())
@@ -30,7 +30,7 @@ func testCompressionDecompression(t *testing.T, dict []byte, payload []byte) {
 	}
 
 	// Decompress
-	r := NewReader(rr, dict)
+	r := NewReaderDict(rr, dict)
 	dst := make([]byte, len(payload))
 	n, err := r.Read(dst)
 	if err != nil {
@@ -91,14 +91,14 @@ func TestStreamCompressionDecompression(t *testing.T) {
 	payload := []byte("Hello World!")
 	repeat := 10000
 	var intermediate bytes.Buffer
-	w := NewWriter(&intermediate, nil, 4)
+	w := NewWriterLevel(&intermediate, 4)
 	for i := 0; i < repeat; i++ {
 		_, err := w.Write(payload)
 		failOnError(t, "Failed writing to compress object", err)
 	}
 	w.Close()
 	// Decompress
-	r := NewReader(&intermediate, nil)
+	r := NewReader(&intermediate)
 	dst := make([]byte, len(payload))
 	for i := 0; i < repeat; i++ {
 		n, err := r.Read(dst)
@@ -130,7 +130,7 @@ func BenchmarkStreamCompression(b *testing.B) {
 		b.Fatal(ErrNoPayloadEnv)
 	}
 	var intermediate bytes.Buffer
-	w := NewWriter(&intermediate, nil, 5)
+	w := NewWriter(&intermediate)
 	defer w.Close()
 	b.SetBytes(int64(len(raw)))
 	b.ResetTimer()
@@ -160,7 +160,7 @@ func BenchmarkStreamDecompression(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		rr := bytes.NewReader(compressed)
-		r := NewReader(rr, nil)
+		r := NewReader(rr)
 		_, err := r.Read(dst)
 		if err != nil {
 			b.Fatalf("Failed to decompress: %s", err)
