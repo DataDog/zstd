@@ -12,7 +12,7 @@ import (
 	"unsafe"
 )
 
-// Writer is a zstd object that implements the io.WriteCloser interface
+// Writer is an io.WriteCloser that zstd-compresses its input.
 type Writer struct {
 	CompressionLevel int
 
@@ -34,36 +34,51 @@ func resize(in []byte, newSize int) []byte {
 	return append(in, make([]byte, toAdd)...)
 }
 
-// NewWriter creates a new object that can optionally be initialized with
-// a precomputed dictionary. If dict is nil, compress without a dictionary.
-// The dictionary array should not be changed during the use of this object.
-// You MUST CALL Close() to write the last bytes of a zstd stream and free C objects.
-func NewWriter(writer io.Writer, dict []byte, compressionLevel int) *Writer {
+// NewWriter creates a new Writer with default compression options.  Writes to
+// the writer will be written in compressed form to w.
+func NewWriter(w io.Writer) *Writer {
+	return NewWriterLevelDict(w, DefaultCompression, nil)
+}
+
+// NewWriterLevel is like NewWriter but specifies the compression level instead
+// of assuming default compression.
+//
+// The level can be DefaultCompression or any integer value between BestSpeed
+// and BestCompression inclusive.
+func NewWriterLevel(w io.Writer, level int) *Writer {
+	return NewWriterLevelDict(w, level, nil)
+
+}
+
+// NewWriterLevelDict is like NewWriterLevel but specifies a dictionary to
+// compress with.  If the dictionary is empty or nil it is ignored. The dictionary
+// should not be modified until the writer is closed.
+func NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer {
 	var err error
 	ctx := C.ZSTD_createCCtx()
 
 	if dict == nil {
 		err = getError(int(C.ZSTD_compressBegin(ctx,
-			C.int(compressionLevel))))
+			C.int(level))))
 	} else {
 		err = getError(int(C.ZSTD_compressBegin_usingDict(
 			ctx,
 			unsafe.Pointer(&dict[0]),
 			C.size_t(len(dict)),
-			C.int(compressionLevel))))
+			C.int(level))))
 	}
 
 	return &Writer{
-		CompressionLevel: compressionLevel,
+		CompressionLevel: level,
 		ctx:              ctx,
 		dict:             dict,
 		dstBuffer:        make([]byte, CompressBound(1024)),
 		firstError:       err,
-		underlyingWriter: writer,
+		underlyingWriter: w,
 	}
 }
 
-// Write compresses the input data and write it to the underlying writer
+// Write writes a compressed form of p to the underlying io.Writer.
 func (w *Writer) Write(p []byte) (int, error) {
 	if w.firstError != nil {
 		return 0, w.firstError
@@ -99,7 +114,8 @@ func (w *Writer) Write(p []byte) (int, error) {
 	return len(p), err
 }
 
-// Close flushes the buffer and frees everything
+// Close closes the Writer, flushing any unwritten data to the underlying
+// io.Writer and freeing objects, but does not close the underlying io.Writer.
 func (w *Writer) Close() error {
 	retCode := C.ZSTD_compressEnd(
 		w.ctx,
@@ -123,8 +139,8 @@ func (w *Writer) Close() error {
 	return nil
 }
 
-// Reader is a zstd object that implements io.ReadCloser
-type Reader struct {
+// reader is an io.ReadCloser that decompresses when read from.
+type reader struct {
 	ctx                 *C.ZBUFF_DCtx
 	compressionBuffer   []byte
 	decompressionBuffer []byte
@@ -138,15 +154,20 @@ type Reader struct {
 	underlyingReader   io.Reader
 }
 
-// NewReader creates a new object, that can optionnaly be initialized with
-// a precomputed dictionnary. If dict is nil, compress without a dictionnary
-// the underlying byte array should not be changed during the use of the object.
-// The dictionary array should not be changed during the use of this object.
-// You MUST CALL Close() to free C objects.
-func NewReader(reader io.Reader, dict []byte) *Reader {
+// NewReader creates a new io.ReadCloser.  Reads from the returned ReadCloser
+// read and decompress data from r.  It is the caller's responsibility to call
+// Close on the ReadCloser when done.  If this is not done, underlying objects
+// in the zstd library will not be freed.
+func NewReader(r io.Reader) io.ReadCloser {
+	return NewReaderDict(r, nil)
+}
+
+// NewReaderDict is like NewReader but uses a preset dictionary.  NewReaderDict
+// ignores the dictionary if it is nil.
+func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 	var err error
 	ctx := C.ZBUFF_createDCtx()
-	if dict == nil {
+	if len(dict) == 0 {
 		err = getError(int(C.ZBUFF_decompressInit(ctx)))
 	} else {
 		err = getError(int(C.ZBUFF_decompressInitDictionary(
@@ -157,32 +178,31 @@ func NewReader(reader io.Reader, dict []byte) *Reader {
 	cSize := int(C.ZBUFF_recommendedDInSize())
 	dSize := int(C.ZBUFF_recommendedDOutSize())
 	if cSize <= 0 {
-		panic(fmt.Errorf("C function ZBUFF_recommendedDInSize() returned a wrong size: %v", cSize))
+		panic(fmt.Errorf("ZBUFF_recommendedDInSize() returned invalid size: %v", cSize))
 	}
 	if dSize <= 0 {
-		panic(fmt.Errorf("C function ZBUFF_recommendedDOutSize() returned a weird size: %v", dSize))
+		panic(fmt.Errorf("ZBUFF_recommendedDOutSize() returned invalid size: %v", dSize))
 	}
 
 	compressionBuffer := make([]byte, cSize)
 	decompressionBuffer := make([]byte, dSize)
-	return &Reader{
+	return &reader{
 		ctx:                 ctx,
 		dict:                dict,
 		compressionBuffer:   compressionBuffer,
 		decompressionBuffer: decompressionBuffer,
 		firstError:          err,
 		recommendedSrcSize:  cSize,
-		underlyingReader:    reader,
+		underlyingReader:    r,
 	}
 }
 
 // Close frees the allocated C objects
-func (r *Reader) Close() error {
+func (r *reader) Close() error {
 	return getError(int(C.ZBUFF_freeDCtx(r.ctx)))
 }
 
-// Read satifies the io.Reader interface
-func (r *Reader) Read(p []byte) (int, error) {
+func (r *reader) Read(p []byte) (int, error) {
 
 	// If we already have enough bytes, return
 	if r.dstBuffer.Len() >= len(p) {

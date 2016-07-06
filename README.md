@@ -8,7 +8,13 @@ This version has been tested and used in Datadog production environment and is s
 
 ## Usage
 
-There are two main API: simple Compress/Decompress and a streaming API (reader/writer)
+There are two main APIs: 
+
+* simple Compress/Decompress
+* streaming API (io.Reader/io.Writer)
+
+The compress/decompress APIs mirror that of lz4, while the streaming API was
+designed to be a drop-in replacement for zlib.
 
 ### Simple `Compress/Decompress`
 
@@ -44,48 +50,47 @@ Decompress(dst, src []byte) ([]byte, error)
 // a precomputed dictionary. If dict is nil, compress without a dictionary.
 // The dictionary array should not be changed during the use of this object.
 // You MUST CALL Close() to write the last bytes of a zstd stream and free C objects.
-NewWriter(writer io.Writer, dict []byte, compressionLevel int)
+NewWriter(w io.Writer) *Writer
+NewWriterLevel(w io.Writer, level int) *Writer
+NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer
 
 // Write compresses the input data and write it to the underlying writer
 (w *Writer) Write(p []byte) (int, error)
 
-// Close flushes the buffer and frees everything
+// Close flushes the buffer and frees C zstd objects
 (w *Writer) Close() error
 ```
 
 ```go
-// NewReader creates a new object, that can optionnaly be initialized with
-// a precomputed dictionnary. If dict is nil, compress without a dictionnary
-// the underlying byte array should not be changed during the use of the object.
-// The dictionary array should not be changed during the use of this object.
-// You MUST CALL Close() to free C objects.
-NewReader(reader io.Reader, dict []byte) *Reader
-
-// Close frees the allocated C objects
-(r *Reader) Close() error
-
-// Read satifies the io.Reader interface
-(r *Reader) Read(p []byte) (int, error)
+// NewReader returns a new io.ReadCloser that will decompress data from the
+// underlying reader.  If a dictionary is provided to NewReaderDict, it must
+// not be modified until Close is called.  It is the caller's responsibility
+// to call Close, which frees up C objects.
+NewReader(r io.Reader) io.ReadCloser
+NewReaderDict(r io.Reader, dict []byte) io.ReadCloser
 ```
 
 ### Benchmarks
 
-The guy behind Zstd is the guy behind LZ4. It's a pretty new algorithm supposed to replace
-the spot of Zlib.
-So far, the ratio is always better than Zlib, it compresses somewhat faster but it decompress at 3-4x the speed of Zlib
+The author of Zstd also wrote lz4. Zstd is intended to occupy a speed/ratio
+level similar to what zlib currently provides.  In our tests, the can always
+be made to be better than zlib by chosing an appropriate level while still
+keeping compression and decompression time faster than zlib.
 
 Compression of a 7Mb pdf zstd (this wrapper) vs [czlib](https://github.com/DataDog/czlib):
 ```
-BenchmarkCompression           5     221056624 ns/op      67.34 MB/s
-BenchmarkDecompression       100      18370416 ns/op     810.32 MB/s
+BenchmarkCompression               5     221056624 ns/op      67.34 MB/s
+BenchmarkDecompression           100      18370416 ns/op     810.32 MB/s
 
-BenchmarkFzlibCompress         2     610156603 ns/op      24.40 MB/s
+BenchmarkFzlibCompress             2     610156603 ns/op      24.40 MB/s
 BenchmarkFzlibDecompress          20      81195246 ns/op     183.33 MB/s
 ```
 
 Ratio is also better by a margin of ~20%.
 Compression speed is always better than zlib on all the payloads we tested;
-However with the current version, [czlib](https://github.com/DataDog/czlib) has a faster decompression for small payloads (it's highly optimized for it):
+However, [czlib](https://github.com/DataDog/czlib) has optimisations that make it
+faster at decompressiong small payloads:
+
 ```
 Testing with size: 11... czlib: 8.97 MB/s, zstd: 3.26 MB/s
 Testing with size: 27... czlib: 23.3 MB/s, zstd: 8.22 MB/s
