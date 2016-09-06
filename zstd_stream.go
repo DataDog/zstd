@@ -147,15 +147,13 @@ func (w *Writer) Close() error {
 type reader struct {
 	ctx                 *C.ZBUFF_DCtx
 	compressionBuffer   []byte
+	compressionLeft     int
 	decompressionBuffer []byte
 	dict                []byte
 	firstError          error
-	// Reuse previous bytes from source that were not consumed
-	// Hopefully because we use recommended size, we will never need to use that
-	srcBuffer          bytes.Buffer
-	dstBuffer          bytes.Buffer
-	recommendedSrcSize int
-	underlyingReader   io.Reader
+	dstBuffer           bytes.Buffer
+	recommendedSrcSize  int
+	underlyingReader    io.Reader
 }
 
 // NewReader creates a new io.ReadCloser.  Reads from the returned ReadCloser
@@ -194,6 +192,7 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 		ctx:                 ctx,
 		dict:                dict,
 		compressionBuffer:   compressionBuffer,
+		compressionLeft:     0,
 		decompressionBuffer: decompressionBuffer,
 		firstError:          err,
 		recommendedSrcSize:  cSize,
@@ -213,20 +212,25 @@ func (r *reader) Read(p []byte) (int, error) {
 		return r.dstBuffer.Read(p)
 	}
 
-	for r.dstBuffer.Len() < len(p) {
+	got := 0
+	if r.dstBuffer.Len() > 0 {
+		n := r.dstBuffer.Len()
+		r.dstBuffer.Read(p[:n])
+		r.dstBuffer.Reset()
+		got += n
+	}
+
+	for got < len(p) {
 		// Populate src
 		src := r.compressionBuffer
 		reader := r.underlyingReader
-		if r.srcBuffer.Len() != 0 {
-			reader = io.MultiReader(&r.srcBuffer, r.underlyingReader)
-		}
-		n, err := io.ReadFull(reader, src)
-		if err == io.EOF {
-			break
-		} else if err != nil && err != io.ErrUnexpectedEOF {
+		n, err := io.ReadFull(reader, src[r.compressionLeft:])
+		if err == io.EOF && n == 0 && r.compressionLeft == 0 {
+			return got, io.EOF
+		} else if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 			return 0, fmt.Errorf("failed to read from underlying reader: %s", err)
 		}
-		src = src[:n]
+		src = src[:r.compressionLeft+n]
 
 		// C code
 		cSrcSize := C.size_t(len(src))
@@ -245,23 +249,32 @@ func (r *reader) Read(p []byte) (int, error) {
 		// Put everything in buffer
 		if int(cSrcSize) < len(src) { // We did not read everything, put in buffer
 			toSave := src[int(cSrcSize):]
-			_, err = r.srcBuffer.Write(toSave)
-			if err != nil {
-				return 0, fmt.Errorf("failed to store temporary src buffer: %s", err)
-			}
+			copy(r.compressionBuffer, toSave)
+			r.compressionLeft = len(toSave)
 		}
-		_, err = r.dstBuffer.Write(r.decompressionBuffer[:int(cDstSize)])
-		if err != nil {
-			return 0, fmt.Errorf("failed to store temporary result: %s", err)
+		toCopy := int(cDstSize)
+		if toCopy > len(p)-got {
+			toCopy = len(p) - got
+		}
+		copy(p[got:], r.decompressionBuffer[:toCopy])
+		got += toCopy
+		if int(cDstSize) > toCopy {
+			_, err = r.dstBuffer.Write(r.decompressionBuffer[toCopy:int(cDstSize)])
+			if err != nil {
+				return 0, fmt.Errorf("failed to store temporary result: %s", err)
+			}
 		}
 
 		// Resize buffers
-		if retCode > 0 { // Hint for next src buffer size
-			r.compressionBuffer = resize(r.compressionBuffer, retCode)
-		} else { // Reset to recommended size
-			r.compressionBuffer = resize(r.compressionBuffer, r.recommendedSrcSize)
+		nsize := retCode // Hint for next src buffer size
+		if nsize <= 0 {
+			// Reset to recommended size
+			nsize = r.recommendedSrcSize
 		}
+		if nsize < r.compressionLeft {
+			nsize = r.compressionLeft
+		}
+		r.compressionBuffer = resize(r.compressionBuffer, nsize)
 	}
-	// Write to dst
-	return r.dstBuffer.Read(p)
+	return got, nil
 }
