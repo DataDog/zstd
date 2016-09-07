@@ -1,15 +1,13 @@
 package zstd
 
 /*
-#cgo LDFLAGS: -L/usr/local/lib -lzstd
-#cgo CFLAGS: -I/usr/local/include -DZSTD_STATIC_LINKING_ONLY
+#cgo CFLAGS: -DZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 */
 import "C"
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"unsafe"
 )
@@ -139,25 +137,21 @@ func Decompress(dst, src []byte) ([]byte, error) {
 
 	if dst == nil {
 		// Attempt to use zStd to determine decompressed size (may result in error or 0)
-		cSize := C.size_t(C.ZSTD_getDecompressedSize(unsafe.Pointer(&src[0]), C.size_t(len(src))))
+		size := int(C.size_t(C.ZSTD_getDecompressedSize(unsafe.Pointer(&src[0]), C.size_t(len(src)))))
 
-		if C.ZSTD_isError(cSize) != C.uint(0) {
-			msg := C.ZSTD_getErrorName(cSize)
-			return dst, fmt.Errorf("cannot determine decompressed size: %s", C.GoString(msg))
+		if err := getError(size); err != nil {
+			return nil, err
 		}
 
-		dstSize := int(cSize)
-
-		if dstSize > 0 {
-			dst = make([]byte, dstSize)
+		if size > 0 {
+			dst = make([]byte, size)
 		} else {
-			// x is the 95 percentile compression ratio of zstd on points.mlti payloads
-			dst = make([]byte, len(src)*3)
+			dst = make([]byte, len(src)*3) // starting guess
 		}
 	}
 	for i := 0; i < 3; i++ { // 3 tries to allocate a bigger buffer
 		result, err := decompress(dst, src)
-		if err == nil {
+		if err != ErrDstSizeTooSmall {
 			return result, err
 		}
 		dst = make([]byte, len(dst)*2) // Grow buffer by 2
