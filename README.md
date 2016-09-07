@@ -2,7 +2,9 @@
 
 [C Zstd Homepage](https://github.com/Cyan4973/zstd)
 
-The current headers and C files are from *v0.5.0* (Commit [201433a](https://github.com/Cyan4973/zstd/commits/201433a7f713af056cc7ea32624eddefb55e10c8)).
+All C files from Zstd have been removed from the distribution; instead
+the shared library is used. This version has been tested against
+zStd library version 1.0.
 
 This version has been tested and used in Datadog production environment and is safe for use.
 

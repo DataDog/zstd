@@ -1,8 +1,9 @@
 package zstd
 
 /*
+#define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
-#include "zstd_buffered.h"
+#include "zbuff.h"
 */
 import "C"
 import (
@@ -120,7 +121,9 @@ func (w *Writer) Close() error {
 	retCode := C.ZSTD_compressEnd(
 		w.ctx,
 		unsafe.Pointer(&w.dstBuffer[0]),
-		C.size_t(len(w.dstBuffer)))
+		C.size_t(len(w.dstBuffer)),
+		unsafe.Pointer(nil),
+		C.size_t(0))
 
 	if err := getError(int(retCode)); err != nil {
 		return err
