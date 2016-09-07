@@ -1,8 +1,7 @@
 package zstd
 
 /*
-#cgo LDFLAGS: -L/usr/local/lib -lzstd
-#cgo CFLAGS: -I/usr/local/include -DZSTD_STATIC_LINKING_ONLY
+#define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "zbuff.h"
 */
