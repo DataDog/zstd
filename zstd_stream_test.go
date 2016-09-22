@@ -31,6 +31,11 @@ func testCompressionDecompression(t *testing.T, dict []byte, payload []byte) {
 		t.Fatalf("Payload did not match, lengths: %v & %v", len(payload), len(decompressed))
 	}
 
+	// Check that BytesWritten() matches contents of buffer we just wrote to
+	if writer.BytesWritten() != int64(w.Len()) {
+		t.Errorf("Bytes written (%d) does not match size of output buffer (%d)", writer.BytesWritten(), w.Len())
+	}
+
 	// Decompress
 	r := NewReaderDict(rr, dict)
 	dst := make([]byte, len(payload))

@@ -21,6 +21,7 @@ type Writer struct {
 	dict             []byte
 	dstBuffer        []byte
 	firstError       error
+	bytesWritten     int64
 	underlyingWriter io.Writer
 }
 
@@ -48,7 +49,6 @@ func NewWriter(w io.Writer) *Writer {
 // and BestCompression inclusive.
 func NewWriterLevel(w io.Writer, level int) *Writer {
 	return NewWriterLevelDict(w, level, nil)
-
 }
 
 // NewWriterLevelDict is like NewWriterLevel but specifies a dictionary to
@@ -112,6 +112,7 @@ func (w *Writer) Write(p []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	w.bytesWritten += int64(written)
 	return len(p), err
 }
 
@@ -139,7 +140,14 @@ func (w *Writer) Close() error {
 	if err != nil {
 		return err
 	}
+	w.bytesWritten += int64(written)
 	return nil
+}
+
+// BytesWritten returns the number of bytes successfully written to
+// the underlying writer.
+func (w *Writer) BytesWritten() int64 {
+	return w.bytesWritten
 }
 
 // reader is an io.ReadCloser that decompresses when read from.
