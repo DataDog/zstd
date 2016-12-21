@@ -2,15 +2,11 @@
 
 [C Zstd Homepage](https://github.com/Cyan4973/zstd)
 
-All C files from Zstd have been removed from the distribution; instead
-the shared library is used. This version has been tested against
-zStd library version 1.0.
-
-This version has been tested and used in Datadog production environment and is safe for use.
+The current headers and C files are from *v1.0* (Commit [38816f9](https://github.com/facebook/zstd/commit/38816f93ff151de020e78dde24f6317e9dfb3ed5)).
 
 ## Usage
 
-There are two main APIs: 
+There are two main APIs:
 
 * simple Compress/Decompress
 * streaming API (io.Reader/io.Writer)
@@ -72,7 +68,7 @@ NewReader(r io.Reader) io.ReadCloser
 NewReaderDict(r io.Reader, dict []byte) io.ReadCloser
 ```
 
-### Benchmarks
+### Benchmarks (benchmarked with v0.5.0)
 
 The author of Zstd also wrote lz4. Zstd is intended to occupy a speed/ratio
 level similar to what zlib currently provides.  In our tests, the can always
