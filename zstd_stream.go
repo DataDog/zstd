@@ -2,6 +2,7 @@ package zstd
 
 /*
 #define ZSTD_STATIC_LINKING_ONLY
+#define ZBUFF_DISABLE_DEPRECATE_WARNINGS
 #include "zstd.h"
 #include "zbuff.h"
 */
