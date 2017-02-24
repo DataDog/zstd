@@ -10,6 +10,7 @@
 
 /*- Dependencies -*/
 #include "zstd_v05.h"
+#include "error_private.h"
 
 
 /* ******************************************************************
@@ -254,79 +255,6 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
 
 #endif /* MEM_H_MODULE */
 
-/* ******************************************************************
-   Error codes list
-   Copyright (C) 2016, Yann Collet
-
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are
-   met:
-
-       * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-       * Redistributions in binary form must reproduce the above
-   copyright notice, this list of conditions and the following disclaimer
-   in the documentation and/or other materials provided with the
-   distribution.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-   You can contact the author at :
-   - Source repository : https://github.com/Cyan4973/zstd
-****************************************************************** */
-#ifndef ERROR_PUBLIC_H_MODULE
-#define ERROR_PUBLIC_H_MODULE
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-
-/* ****************************************
-*  error codes list
-******************************************/
-typedef enum {
-  ZSTDv05_error_no_error,
-  ZSTDv05_error_GENERIC,
-  ZSTDv05_error_prefix_unknown,
-  ZSTDv05_error_frameParameter_unsupported,
-  ZSTDv05_error_frameParameter_unsupportedBy32bits,
-  ZSTDv05_error_init_missing,
-  ZSTDv05_error_memory_allocation,
-  ZSTDv05_error_stage_wrong,
-  ZSTDv05_error_dstSize_tooSmall,
-  ZSTDv05_error_srcSize_wrong,
-  ZSTDv05_error_corruption_detected,
-  ZSTDv05_error_tableLog_tooLarge,
-  ZSTDv05_error_maxSymbolValue_tooLarge,
-  ZSTDv05_error_maxSymbolValue_tooSmall,
-  ZSTDv05_error_dictionary_corrupted,
-  ZSTDv05_error_maxCode
-} ZSTDv05_ErrorCode;
-
-/* note : functions provide error codes in reverse negative order,
-          so compare with (size_t)(0-enum) */
-
-
-#if defined (__cplusplus)
-}
-#endif
-
-#endif /* ERROR_PUBLIC_H_MODULE */
-
-
 /*
     zstd - standard compression library
     Header File for static linking only
@@ -470,119 +398,6 @@ size_t ZSTDv05_decompressBlock(ZSTDv05_DCtx* dctx, void* dst, size_t dstCapacity
 #endif  /* ZSTDv05_STATIC_H */
 
 
-
-/* ******************************************************************
-   Error codes and messages
-   Copyright (C) 2013-2016, Yann Collet
-
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are
-   met:
-
-       * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-       * Redistributions in binary form must reproduce the above
-   copyright notice, this list of conditions and the following disclaimer
-   in the documentation and/or other materials provided with the
-   distribution.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-   You can contact the author at :
-   - Source repository : https://github.com/Cyan4973/zstd
-****************************************************************** */
-/* Note : this module is expected to remain private, do not expose it */
-
-#ifndef ERROR_H_MODULE
-#define ERROR_H_MODULE
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-
-
-/* ****************************************
-*  Compiler-specific
-******************************************/
-#if defined(__GNUC__)
-#  define ERR_STATIC static __attribute__((unused))
-#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-#  define ERR_STATIC static inline
-#elif defined(_MSC_VER)
-#  define ERR_STATIC static __inline
-#else
-#  define ERR_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
-#endif
-
-
-/*-****************************************
-*  Customization
-******************************************/
-typedef ZSTDv05_ErrorCode ERR_enum;
-#define PREFIX(name) ZSTDv05_error_##name
-
-
-/*-****************************************
-*  Error codes handling
-******************************************/
-#ifdef ERROR
-#  undef ERROR   /* reported already defined on VS 2015 (Rich Geldreich) */
-#endif
-#define ERROR(name) (size_t)-PREFIX(name)
-
-ERR_STATIC unsigned ERR_isError(size_t code) { return (code > ERROR(maxCode)); }
-
-ERR_STATIC ERR_enum ERR_getError(size_t code) { if (!ERR_isError(code)) return (ERR_enum)0; return (ERR_enum) (0-code); }
-
-
-/*-****************************************
-*  Error Strings
-******************************************/
-
-ERR_STATIC const char* ERR_getErrorName(size_t code)
-{
-    static const char* notErrorCode = "Unspecified error code";
-    switch( ERR_getError(code) )
-    {
-    case PREFIX(no_error): return "No error detected";
-    case PREFIX(GENERIC):  return "Error (generic)";
-    case PREFIX(prefix_unknown): return "Unknown frame descriptor";
-    case PREFIX(frameParameter_unsupported): return "Unsupported frame parameter";
-    case PREFIX(frameParameter_unsupportedBy32bits): return "Frame parameter unsupported in 32-bits mode";
-    case PREFIX(init_missing): return "Context should be init first";
-    case PREFIX(memory_allocation): return "Allocation error : not enough memory";
-    case PREFIX(stage_wrong): return "Operation not authorized at current processing stage";
-    case PREFIX(dstSize_tooSmall): return "Destination buffer is too small";
-    case PREFIX(srcSize_wrong): return "Src size incorrect";
-    case PREFIX(corruption_detected): return "Corrupted block detected";
-    case PREFIX(tableLog_tooLarge): return "tableLog requires too much memory";
-    case PREFIX(maxSymbolValue_tooLarge): return "Unsupported max possible Symbol Value : too large";
-    case PREFIX(maxSymbolValue_tooSmall): return "Specified maxSymbolValue is too small";
-    case PREFIX(dictionary_corrupted): return "Dictionary is corrupted";
-    case PREFIX(maxCode):
-    default: return notErrorCode;   /* should be impossible, due to ERR_getError() */
-    }
-}
-
-
-#if defined (__cplusplus)
-}
-#endif
-
-#endif /* ERROR_H_MODULE */
 /*
     zstd_internal - common functions to include
     Header File for include
@@ -694,7 +509,7 @@ static void ZSTDv05_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 
 /*! ZSTDv05_wildcopy() :
 *   custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
-MEM_STATIC void ZSTDv05_wildcopy(void* dst, const void* src, size_t length)
+MEM_STATIC void ZSTDv05_wildcopy(void* dst, const void* src, ptrdiff_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -1380,12 +1195,15 @@ MEM_STATIC unsigned FSEv05_endOfDState(const FSEv05_DState_t* DStatePtr)
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4214)        /* disable: C4214: non-int bitfields */
 #else
-#  ifdef __GNUC__
-#    define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
-#    define FORCE_INLINE static inline __attribute__((always_inline))
+#  if defined (__cplusplus) || defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
+#    ifdef __GNUC__
+#      define FORCE_INLINE static inline __attribute__((always_inline))
+#    else
+#      define FORCE_INLINE static inline
+#    endif
 #  else
-#    define FORCE_INLINE static inline
-#  endif
+#    define FORCE_INLINE static
+#  endif /* __STDC_VERSION__ */
 #endif
 
 
@@ -2002,14 +1820,7 @@ size_t HUFv05_decompress1X4_usingDTable(void* dst, size_t maxDstSize, const void
 
 
 #ifdef _MSC_VER    /* Visual Studio */
-#  define FORCE_INLINE static __forceinline
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
-#else
-#  ifdef __GNUC__
-#    define FORCE_INLINE static inline __attribute__((always_inline))
-#  else
-#    define FORCE_INLINE static inline
-#  endif
 #endif
 
 
@@ -2062,10 +1873,12 @@ static size_t HUFv05_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
     U32 weightTotal;
     U32 tableLog;
     const BYTE* ip = (const BYTE*) src;
-    size_t iSize = ip[0];
+    size_t iSize;
     size_t oSize;
     U32 n;
 
+    if (!srcSize) return ERROR(srcSize_wrong);
+    iSize = ip[0];
     //memset(huffWeight, 0, hwSize);   /* is not necessary, even though some analyzer complain ... */
 
     if (iSize >= 128)  { /* special header */
@@ -2099,6 +1912,7 @@ static size_t HUFv05_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
         rankStats[huffWeight[n]]++;
         weightTotal += (1 << huffWeight[n]) >> 1;
     }
+    if (weightTotal == 0) return ERROR(corruption_detected);
 
     /* get last non-null symbol weight (implied, total must be 2^n) */
     tableLog = BITv05_highbit32(weightTotal) + 1;
@@ -2221,13 +2035,14 @@ size_t HUFv05_decompress1X2_usingDTable(
 {
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + dstSize;
-    size_t errorCode;
     const U32 dtLog = DTable[0];
     const void* dtPtr = DTable;
     const HUFv05_DEltX2* const dt = ((const HUFv05_DEltX2*)dtPtr)+1;
     BITv05_DStream_t bitD;
-    errorCode = BITv05_initDStream(&bitD, cSrc, cSrcSize);
-    if (HUFv05_isError(errorCode)) return errorCode;
+
+    if (dstSize <= cSrcSize) return ERROR(dstSize_tooSmall);
+    { size_t const errorCode = BITv05_initDStream(&bitD, cSrc, cSrcSize);
+      if (HUFv05_isError(errorCode)) return errorCode; }
 
     HUFv05_decodeStreamX2(op, &bitD, oend, dt, dtLog);
 
@@ -2858,17 +2673,9 @@ size_t HUFv05_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cS
 *  Compiler specifics
 *********************************************************/
 #ifdef _MSC_VER    /* Visual Studio */
-#  define FORCE_INLINE static __forceinline
 #  include <intrin.h>                    /* For Visual 2005 */
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4324)        /* disable: C4324: padded structure */
-#else
-#  define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
-#  ifdef __GNUC__
-#    define FORCE_INLINE static inline __attribute__((always_inline))
-#  else
-#    define FORCE_INLINE static inline
-#  endif
 #endif
 
 
@@ -2895,9 +2702,6 @@ static void ZSTDv05_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
 *   tells if a return value is an error code */
 unsigned ZSTDv05_isError(size_t code) { return ERR_isError(code); }
 
-/*! ZSTDv05_getError() :
-*   convert a `size_t` function result into a proper ZSTDv05_errorCode enum */
-ZSTDv05_ErrorCode ZSTDv05_getError(size_t code) { return ERR_getError(code); }
 
 /*! ZSTDv05_getErrorName() :
 *   provides error code string (useful for debugging) */
@@ -2927,7 +2731,6 @@ struct ZSTDv05_DCtx_s
     ZSTDv05_dStage stage;
     U32 flagStaticTables;
     const BYTE* litPtr;
-    size_t litBufSize;
     size_t litSize;
     BYTE litBuffer[BLOCKSIZE + WILDCOPY_OVERLENGTH];
     BYTE headerBuffer[ZSTDv05_frameHeaderSize_max];
@@ -3142,6 +2945,7 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
         {
             size_t litSize, litCSize, singleStream=0;
             U32 lhSize = ((istart[0]) >> 4) & 3;
+            if (srcSize < 5) return ERROR(corruption_detected);   /* srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for case 3 */
             switch(lhSize)
             {
             case 0: case 1: default:   /* note : default is impossible, since lhSize into [0..3] */
@@ -3165,6 +2969,7 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
                 break;
             }
             if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
+            if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
 
             if (HUFv05_isError(singleStream ?
                             HUFv05_decompress1X2(dctx->litBuffer, litSize, istart+lhSize, litCSize) :
@@ -3172,8 +2977,8 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
                 return ERROR(corruption_detected);
 
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE+8;
             dctx->litSize = litSize;
+            memset(dctx->litBuffer + dctx->litSize, 0, WILDCOPY_OVERLENGTH);
             return litCSize + lhSize;
         }
     case IS_PCH:
@@ -3190,13 +2995,14 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
             lhSize=3;
             litSize  = ((istart[0] & 15) << 6) + (istart[1] >> 2);
             litCSize = ((istart[1] &  3) << 8) + istart[2];
+            if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
 
             errorCode = HUFv05_decompress1X4_usingDTable(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->hufTableX4);
             if (HUFv05_isError(errorCode)) return ERROR(corruption_detected);
 
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE+WILDCOPY_OVERLENGTH;
             dctx->litSize = litSize;
+            memset(dctx->litBuffer + dctx->litSize, 0, WILDCOPY_OVERLENGTH);
             return litCSize + lhSize;
         }
     case IS_RAW:
@@ -3221,13 +3027,12 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
                 if (litSize+lhSize > srcSize) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart+lhSize, litSize);
                 dctx->litPtr = dctx->litBuffer;
-                dctx->litBufSize = BLOCKSIZE+8;
                 dctx->litSize = litSize;
+                memset(dctx->litBuffer + dctx->litSize, 0, WILDCOPY_OVERLENGTH);
                 return lhSize+litSize;
             }
             /* direct reference into compressed stream */
             dctx->litPtr = istart+lhSize;
-            dctx->litBufSize = srcSize-lhSize;
             dctx->litSize = litSize;
             return lhSize+litSize;
         }
@@ -3246,12 +3051,12 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
                 break;
             case 3:
                 litSize = ((istart[0] & 15) << 16) + (istart[1] << 8) + istart[2];
+                if (srcSize<4) return ERROR(corruption_detected);   /* srcSize >= MIN_CBLOCK_SIZE == 3; here we need lhSize+1 = 4 */
                 break;
             }
             if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
-            memset(dctx->litBuffer, istart[lhSize], litSize);
+            memset(dctx->litBuffer, istart[lhSize], litSize + WILDCOPY_OVERLENGTH);
             dctx->litPtr = dctx->litBuffer;
-            dctx->litBufSize = BLOCKSIZE+WILDCOPY_OVERLENGTH;
             dctx->litSize = litSize;
             return lhSize+1;
         }
@@ -3263,7 +3068,7 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
 
 size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr,
                          FSEv05_DTable* DTableLL, FSEv05_DTable* DTableML, FSEv05_DTable* DTableOffb,
-                         const void* src, size_t srcSize)
+                         const void* src, size_t srcSize, U32 flagStaticTable)
 {
     const BYTE* const istart = (const BYTE* const)src;
     const BYTE* ip = istart;
@@ -3279,17 +3084,22 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
     /* SeqHead */
     *nbSeq = *ip++;
     if (*nbSeq==0) return 1;
-    if (*nbSeq >= 128)
+    if (*nbSeq >= 128) {
+        if (ip >= iend) return ERROR(srcSize_wrong);
         *nbSeq = ((nbSeq[0]-128)<<8) + *ip++;
+    }
 
+    if (ip >= iend) return ERROR(srcSize_wrong);
     LLtype  = *ip >> 6;
     Offtype = (*ip >> 4) & 3;
     MLtype  = (*ip >> 2) & 3;
     if (*ip & 2) {
+        if (ip+3 > iend) return ERROR(srcSize_wrong);
         dumpsLength  = ip[2];
         dumpsLength += ip[1] << 8;
         ip += 3;
     } else {
+        if (ip+2 > iend) return ERROR(srcSize_wrong);
         dumpsLength  = ip[1];
         dumpsLength += (ip[0] & 1) << 8;
         ip += 2;
@@ -3318,6 +3128,7 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             FSEv05_buildDTable_raw(DTableLL, LLbits);
             break;
         case FSEv05_ENCODING_STATIC:
+            if (!flagStaticTable) return ERROR(corruption_detected);
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
@@ -3341,6 +3152,7 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             FSEv05_buildDTable_raw(DTableOffb, Offbits);
             break;
         case FSEv05_ENCODING_STATIC:
+            if (!flagStaticTable) return ERROR(corruption_detected);
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
@@ -3364,6 +3176,7 @@ size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumps
             FSEv05_buildDTable_raw(DTableML, MLbits);
             break;
         case FSEv05_ENCODING_STATIC:
+            if (!flagStaticTable) return ERROR(corruption_detected);
             break;
         case FSEv05_ENCODING_DYNAMIC :
         default :   /* impossible */
@@ -3417,7 +3230,8 @@ static void ZSTDv05_decodeSequence(seq_t* seq, seqState_t* seqState)
             if (litLength&1) litLength>>=1, dumps += 3;
             else litLength = (U16)(litLength)>>1, dumps += 2;
         }
-        if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
+        if (dumps > de) { litLength = MaxLL+255; }  /* late correction, to avoid using uninitialized memory */
+        if (dumps >= de) { dumps = de-1; }  /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
 
     /* Offset */
@@ -3450,7 +3264,8 @@ static void ZSTDv05_decodeSequence(seq_t* seq, seqState_t* seqState)
             if (matchLength&1) matchLength>>=1, dumps += 3;
             else matchLength = (U16)(matchLength)>>1, dumps += 2;
         }
-        if (dumps >= de) dumps = de-1;   /* late correction, to avoid read overflow (data is now corrupted anyway) */
+        if (dumps > de) { matchLength = MaxML+255; }  /* late correction, to avoid using uninitialized memory */
+        if (dumps >= de) { dumps = de-1; }  /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
     matchLength += MINMATCH;
 
@@ -3473,7 +3288,7 @@ static void ZSTDv05_decodeSequence(seq_t* seq, seqState_t* seqState)
 
 static size_t ZSTDv05_execSequence(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
-                                const BYTE** litPtr, const BYTE* const litLimit_8,
+                                const BYTE** litPtr, const BYTE* const litLimit,
                                 const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
 {
     static const int dec32table[] = { 0, 1, 2, 1, 4, 4, 4, 4 };   /* added */
@@ -3488,7 +3303,7 @@ static size_t ZSTDv05_execSequence(BYTE* op,
     /* check */
     if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
-    if (litEnd > litLimit_8) return ERROR(corruption_detected);   /* risk read beyond lit buffer */
+    if (litEnd > litLimit) return ERROR(corruption_detected);   /* risk read beyond lit buffer */
 
     /* copy Literals */
     ZSTDv05_wildcopy(op, *litPtr, sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */
@@ -3512,7 +3327,12 @@ static size_t ZSTDv05_execSequence(BYTE* op,
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
             match = base;
+            if (op > oend_8 || sequence.matchLength < MINMATCH) {
+              while (op < oMatchEnd) *op++ = *match++;
+              return sequenceLength;
+            }
     }   }
+    /* Requirement: op <= oend_8 */
 
     /* match within prefix */
     if (sequence.offset < 8) {
@@ -3530,7 +3350,7 @@ static size_t ZSTDv05_execSequence(BYTE* op,
     }
     op += 8; match += 8;
 
-    if (oMatchEnd > oend-12) {
+    if (oMatchEnd > oend-(16-MINMATCH)) {
         if (op < oend_8) {
             ZSTDv05_wildcopy(op, match, oend_8 - op);
             match += oend_8 - op;
@@ -3539,7 +3359,7 @@ static size_t ZSTDv05_execSequence(BYTE* op,
         while (op < oMatchEnd)
             *op++ = *match++;
     } else {
-        ZSTDv05_wildcopy(op, match, sequence.matchLength-8);   /* works even if matchLength < 8 */
+        ZSTDv05_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8);   /* works even if matchLength < 8 */
     }
     return sequenceLength;
 }
@@ -3557,7 +3377,6 @@ static size_t ZSTDv05_decompressSequences(
     BYTE* const oend = ostart + maxDstSize;
     size_t errorCode, dumpsLength;
     const BYTE* litPtr = dctx->litPtr;
-    const BYTE* const litLimit_8 = litPtr + dctx->litBufSize - 8;
     const BYTE* const litEnd = litPtr + dctx->litSize;
     int nbSeq;
     const BYTE* dumps;
@@ -3571,7 +3390,7 @@ static size_t ZSTDv05_decompressSequences(
     /* Build Decoding Tables */
     errorCode = ZSTDv05_decodeSeqHeaders(&nbSeq, &dumps, &dumpsLength,
                                       DTableLL, DTableML, DTableOffb,
-                                      ip, seqSize);
+                                      ip, seqSize, dctx->flagStaticTables);
     if (ZSTDv05_isError(errorCode)) return errorCode;
     ip += errorCode;
 
@@ -3595,7 +3414,7 @@ static size_t ZSTDv05_decompressSequences(
             size_t oneSeqSize;
             nbSeq--;
             ZSTDv05_decodeSequence(&sequence, &seqState);
-            oneSeqSize = ZSTDv05_execSequence(op, oend, sequence, &litPtr, litLimit_8, base, vBase, dictEnd);
+            oneSeqSize = ZSTDv05_execSequence(op, oend, sequence, &litPtr, litEnd, base, vBase, dictEnd);
             if (ZSTDv05_isError(oneSeqSize)) return oneSeqSize;
             op += oneSeqSize;
         }
@@ -3860,11 +3679,11 @@ static size_t ZSTDv05_loadEntropy(ZSTDv05_DCtx* dctx, const void* dict, size_t d
 {
     size_t hSize, offcodeHeaderSize, matchlengthHeaderSize, errorCode, litlengthHeaderSize;
     short offcodeNCount[MaxOff+1];
-    U32 offcodeMaxValue=MaxOff, offcodeLog=OffFSEv05Log;
+    U32 offcodeMaxValue=MaxOff, offcodeLog;
     short matchlengthNCount[MaxML+1];
-    unsigned matchlengthMaxValue = MaxML, matchlengthLog = MLFSEv05Log;
+    unsigned matchlengthMaxValue = MaxML, matchlengthLog;
     short litlengthNCount[MaxLL+1];
-    unsigned litlengthMaxValue = MaxLL, litlengthLog = LLFSEv05Log;
+    unsigned litlengthMaxValue = MaxLL, litlengthLog;
 
     hSize = HUFv05_readDTableX4(dctx->hufTableX4, dict, dictSize);
     if (HUFv05_isError(hSize)) return ERROR(dictionary_corrupted);
@@ -3873,6 +3692,7 @@ static size_t ZSTDv05_loadEntropy(ZSTDv05_DCtx* dctx, const void* dict, size_t d
 
     offcodeHeaderSize = FSEv05_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dict, dictSize);
     if (FSEv05_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
+    if (offcodeLog > OffFSEv05Log) return ERROR(dictionary_corrupted);
     errorCode = FSEv05_buildDTable(dctx->OffTable, offcodeNCount, offcodeMaxValue, offcodeLog);
     if (FSEv05_isError(errorCode)) return ERROR(dictionary_corrupted);
     dict = (const char*)dict + offcodeHeaderSize;
@@ -3880,12 +3700,14 @@ static size_t ZSTDv05_loadEntropy(ZSTDv05_DCtx* dctx, const void* dict, size_t d
 
     matchlengthHeaderSize = FSEv05_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dict, dictSize);
     if (FSEv05_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
+    if (matchlengthLog > MLFSEv05Log) return ERROR(dictionary_corrupted);
     errorCode = FSEv05_buildDTable(dctx->MLTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog);
     if (FSEv05_isError(errorCode)) return ERROR(dictionary_corrupted);
     dict = (const char*)dict + matchlengthHeaderSize;
     dictSize -= matchlengthHeaderSize;
 
     litlengthHeaderSize = FSEv05_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dict, dictSize);
+    if (litlengthLog > LLFSEv05Log) return ERROR(dictionary_corrupted);
     if (FSEv05_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
     errorCode = FSEv05_buildDTable(dctx->LLTable, litlengthNCount, litlengthMaxValue, litlengthLog);
     if (FSEv05_isError(errorCode)) return ERROR(dictionary_corrupted);
