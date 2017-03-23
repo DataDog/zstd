@@ -2,7 +2,7 @@
 
 [C Zstd Homepage](https://github.com/Cyan4973/zstd)
 
-The current headers and C files are from *v1.0* (Commit [38816f9](https://github.com/facebook/zstd/commit/38816f93ff151de020e78dde24f6317e9dfb3ed5)).
+The current headers and C files are from *v1.1.3* (Commit [cbc5225d](https://github.com/facebook/zstd/releases/tag/v1.1.3)).
 
 ## Usage
 
