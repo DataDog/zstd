@@ -4,7 +4,6 @@ package zstd
 #define ZSTD_STATIC_LINKING_ONLY
 #define ZBUFF_DISABLE_DEPRECATE_WARNINGS
 #include "zstd.h"
-#include "zbuff.h"
 */
 import "C"
 import (
@@ -18,10 +17,10 @@ import (
 type Writer struct {
 	CompressionLevel int
 
-	ctx              *C.ZSTD_CCtx
 	dict             []byte
 	dstBuffer        []byte
 	firstError       error
+	stream           *C.ZSTD_CStream
 	underlyingWriter io.Writer
 }
 
@@ -34,6 +33,22 @@ func resize(in []byte, newSize int) []byte {
 	}
 	toAdd := newSize - len(in)
 	return append(in, make([]byte, toAdd)...)
+}
+
+func getZSTDInBuffer(b []byte) C.ZSTD_inBuffer {
+	return C.ZSTD_inBuffer{
+		src:  unsafe.Pointer(&b[0]),
+		size: C.size_t(len(b)),
+		pos:  0,
+	}
+}
+
+func getZSTDOutBuffer(b []byte) C.ZSTD_outBuffer {
+	return C.ZSTD_outBuffer{
+		dst:  unsafe.Pointer(&b[0]),
+		size: C.size_t(len(b)),
+		pos:  0,
+	}
 }
 
 // NewWriter creates a new Writer with default compression options.  Writes to
@@ -57,14 +72,14 @@ func NewWriterLevel(w io.Writer, level int) *Writer {
 // should not be modified until the writer is closed.
 func NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer {
 	var err error
-	ctx := C.ZSTD_createCCtx()
+	stream := C.ZSTD_createCStream()
 
 	if dict == nil {
-		err = getError(int(C.ZSTD_compressBegin(ctx,
+		err = getError(int(C.ZSTD_initCStream(stream,
 			C.int(level))))
 	} else {
-		err = getError(int(C.ZSTD_compressBegin_usingDict(
-			ctx,
+		err = getError(int(C.ZSTD_initCStream_usingDict(
+			stream,
 			unsafe.Pointer(&dict[0]),
 			C.size_t(len(dict)),
 			C.int(level))))
@@ -72,10 +87,10 @@ func NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer {
 
 	return &Writer{
 		CompressionLevel: level,
-		ctx:              ctx,
 		dict:             dict,
 		dstBuffer:        make([]byte, CompressBound(1024)),
 		firstError:       err,
+		stream:           stream,
 		underlyingWriter: w,
 	}
 }
@@ -93,17 +108,19 @@ func (w *Writer) Write(p []byte) (int, error) {
 		w.dstBuffer = make([]byte, CompressBound(len(p)))
 	}
 
-	retCode := C.ZSTD_compressContinue(
-		w.ctx,
-		unsafe.Pointer(&w.dstBuffer[0]),
-		C.size_t(len(w.dstBuffer)),
-		unsafe.Pointer(&p[0]),
-		C.size_t(len(p)))
+	inBuffer := getZSTDInBuffer(p)
+	outBuffer := getZSTDOutBuffer(w.dstBuffer)
+	retCode := C.ZSTD_compressStream(
+		w.stream,
+		&outBuffer,
+		&inBuffer,
+	)
 
 	if err := getError(int(retCode)); err != nil {
 		return 0, err
 	}
-	written := int(retCode)
+	consumed := int(inBuffer.pos)
+	written := int(outBuffer.pos)
 
 	// Write to underlying buffer
 	_, err := w.underlyingWriter.Write(w.dstBuffer[:written])
@@ -113,24 +130,24 @@ func (w *Writer) Write(p []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return len(p), err
+	return consumed, err
 }
 
 // Close closes the Writer, flushing any unwritten data to the underlying
 // io.Writer and freeing objects, but does not close the underlying io.Writer.
 func (w *Writer) Close() error {
-	retCode := C.ZSTD_compressEnd(
-		w.ctx,
-		unsafe.Pointer(&w.dstBuffer[0]),
-		C.size_t(len(w.dstBuffer)),
-		unsafe.Pointer(nil),
-		C.size_t(0))
+	outBuffer := getZSTDOutBuffer(w.dstBuffer)
+
+	retCode := C.ZSTD_endStream(
+		w.stream,
+		&outBuffer,
+	)
 
 	if err := getError(int(retCode)); err != nil {
 		return err
 	}
-	written := int(retCode)
-	retCode = C.ZSTD_freeCCtx(w.ctx) // Safely close buffer before writing the end
+	written := int(outBuffer.pos)
+	retCode = C.ZSTD_freeCStream(w.stream) // Safely close buffer before writing the end
 
 	if err := getError(int(retCode)); err != nil {
 		return err
@@ -145,7 +162,6 @@ func (w *Writer) Close() error {
 
 // reader is an io.ReadCloser that decompresses when read from.
 type reader struct {
-	ctx                 *C.ZBUFF_DCtx
 	compressionBuffer   []byte
 	decompressionBuffer []byte
 	dict                []byte
@@ -155,6 +171,7 @@ type reader struct {
 	srcBuffer          bytes.Buffer
 	dstBuffer          bytes.Buffer
 	recommendedSrcSize int
+	stream             *C.ZSTD_DStream
 	underlyingReader   io.Reader
 }
 
@@ -170,17 +187,17 @@ func NewReader(r io.Reader) io.ReadCloser {
 // ignores the dictionary if it is nil.
 func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 	var err error
-	ctx := C.ZBUFF_createDCtx()
+	stream := C.ZSTD_createDStream()
 	if len(dict) == 0 {
-		err = getError(int(C.ZBUFF_decompressInit(ctx)))
+		err = getError(int(C.ZSTD_initDStream(stream)))
 	} else {
-		err = getError(int(C.ZBUFF_decompressInitDictionary(
-			ctx,
+		err = getError(int(C.ZSTD_initDStream_usingDict(
+			stream,
 			unsafe.Pointer(&dict[0]),
 			C.size_t(len(dict)))))
 	}
-	cSize := int(C.ZBUFF_recommendedDInSize())
-	dSize := int(C.ZBUFF_recommendedDOutSize())
+	cSize := int(C.ZSTD_DStreamInSize())
+	dSize := int(C.ZSTD_DStreamOutSize())
 	if cSize <= 0 {
 		panic(fmt.Errorf("ZBUFF_recommendedDInSize() returned invalid size: %v", cSize))
 	}
@@ -191,19 +208,19 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 	compressionBuffer := make([]byte, cSize)
 	decompressionBuffer := make([]byte, dSize)
 	return &reader{
-		ctx:                 ctx,
 		dict:                dict,
 		compressionBuffer:   compressionBuffer,
 		decompressionBuffer: decompressionBuffer,
 		firstError:          err,
 		recommendedSrcSize:  cSize,
+		stream:              stream,
 		underlyingReader:    r,
 	}
 }
 
 // Close frees the allocated C objects
 func (r *reader) Close() error {
-	return getError(int(C.ZBUFF_freeDCtx(r.ctx)))
+	return getError(int(C.ZSTD_freeDStream(r.stream)))
 }
 
 func (r *reader) Read(p []byte) (int, error) {
@@ -229,28 +246,27 @@ func (r *reader) Read(p []byte) (int, error) {
 		src = src[:n]
 
 		// C code
-		cSrcSize := C.size_t(len(src))
-		cDstSize := C.size_t(len(r.decompressionBuffer))
-		retCode := int(C.ZBUFF_decompressContinue(
-			r.ctx,
-			unsafe.Pointer(&r.decompressionBuffer[0]),
-			&cDstSize,
-			unsafe.Pointer(&src[0]),
-			&cSrcSize))
+		inBuffer := getZSTDInBuffer(src)
+		outBuffer := getZSTDOutBuffer(r.decompressionBuffer)
+		retCode := int(C.ZSTD_decompressStream(
+			r.stream,
+			&outBuffer,
+			&inBuffer,
+		))
 
 		if err = getError(retCode); err != nil {
 			return 0, fmt.Errorf("failed to decompress: %s", err)
 		}
 
 		// Put everything in buffer
-		if int(cSrcSize) < len(src) { // We did not read everything, put in buffer
-			toSave := src[int(cSrcSize):]
+		if int(inBuffer.pos) < int(inBuffer.size) { // We did not read everything, put in buffer
+			toSave := src[int(inBuffer.pos):]
 			_, err = r.srcBuffer.Write(toSave)
 			if err != nil {
 				return 0, fmt.Errorf("failed to store temporary src buffer: %s", err)
 			}
 		}
-		_, err = r.dstBuffer.Write(r.decompressionBuffer[:int(cDstSize)])
+		_, err = r.dstBuffer.Write(r.decompressionBuffer[:int(outBuffer.pos)])
 		if err != nil {
 			return 0, fmt.Errorf("failed to store temporary result: %s", err)
 		}
