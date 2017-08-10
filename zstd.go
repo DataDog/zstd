@@ -66,7 +66,12 @@ var (
 // which can be used to preallocate a destination buffer or select a previously
 // allocated buffer from a pool.
 func CompressBound(srcSize int) int {
-	return 512 + srcSize + (srcSize >> 7) + 12
+	lowLimit := 256 * 1024 // 256 kB
+	var margin int
+	if srcSize < lowLimit {
+		margin = (lowLimit - srcSize) >> 12
+	}
+	return srcSize + (srcSize >> 8) + margin
 }
 
 // cCompressBound is a cgo call to check the go implementation above against the c code.
