@@ -477,8 +477,8 @@ MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, U32 nbBits)
 
 MEM_STATIC BIT_DStream_status BIT_reloadDStream(BIT_DStream_t* bitD)
 {
-	if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
-		return BIT_DStream_overflow;
+    if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
+        return BIT_DStream_overflow;
 
     if (bitD->ptr >= bitD->start + sizeof(bitD->bitContainer))
     {
@@ -1335,8 +1335,8 @@ static size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsi
                 else
                 {
                     bitCount -= (int)(8 * (iend - 4 - ip));
-					ip = iend - 4;
-				}
+                    ip = iend - 4;
+                }
                 bitStream = MEM_readLE32(ip) >> (bitCount & 31);
             }
         }
@@ -2037,7 +2037,7 @@ static size_t HUF_readDTableX4 (U32* DTable, const void* src, size_t srcSize)
         rankStart[0] = 0;   /* forget 0w symbols; this is beginning of weight(1) */
     }
 
-	/* Build rankVal */
+    /* Build rankVal */
     {
         const U32 minBits = tableLog+1 - maxW;
         U32 nextRankVal = 0;
@@ -2589,14 +2589,14 @@ static size_t ZSTD_decodeLiteralsBlock(void* ctx,
             const size_t litSize = (MEM_readLE32(istart) & 0xFFFFFF) >> 2;   /* no buffer issue : srcSize >= MIN_CBLOCK_SIZE */
             if (litSize > srcSize-11)   /* risk of reading too far with wildcopy */
             {
-				if (litSize > srcSize-3) return ERROR(corruption_detected);
-				memcpy(dctx->litBuffer, istart, litSize);
-				dctx->litPtr = dctx->litBuffer;
-				dctx->litSize = litSize;
-				memset(dctx->litBuffer + dctx->litSize, 0, 8);
-				return litSize+3;
-			}
-			/* direct reference into compressed stream */
+                if (litSize > srcSize-3) return ERROR(corruption_detected);
+                memcpy(dctx->litBuffer, istart, litSize);
+                dctx->litPtr = dctx->litBuffer;
+                dctx->litSize = litSize;
+                memset(dctx->litBuffer + dctx->litSize, 0, 8);
+                return litSize+3;
+            }
+            /* direct reference into compressed stream */
             dctx->litPtr = istart+3;
             dctx->litSize = litSize;
             return litSize+3;
@@ -3019,6 +3019,38 @@ static size_t ZSTD_decompress(void* dst, size_t maxDstSize, const void* src, siz
     return ZSTD_decompressDCtx(&ctx, dst, maxDstSize, src, srcSize);
 }
 
+static size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize)
+{
+    const BYTE* ip = (const BYTE*)src;
+    size_t remainingSize = srcSize;
+    U32 magicNumber;
+    blockProperties_t blockProperties;
+
+    /* Frame Header */
+    if (srcSize < ZSTD_frameHeaderSize+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);
+    magicNumber = MEM_readLE32(src);
+    if (magicNumber != ZSTD_magicNumber) return ERROR(prefix_unknown);
+    ip += ZSTD_frameHeaderSize; remainingSize -= ZSTD_frameHeaderSize;
+
+    /* Loop on each block */
+    while (1)
+    {
+        size_t cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
+        if (ZSTD_isError(cBlockSize)) return cBlockSize;
+
+        ip += ZSTD_blockHeaderSize;
+        remainingSize -= ZSTD_blockHeaderSize;
+        if (cBlockSize > remainingSize) return ERROR(srcSize_wrong);
+
+        if (cBlockSize == 0) break;   /* bt_end */
+
+        ip += cBlockSize;
+        remainingSize -= cBlockSize;
+    }
+
+    return ip - (const BYTE*)src;
+}
+
 
 /*******************************
 *  Streaming Decompression API
@@ -3124,36 +3156,41 @@ static size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSi
 
 unsigned ZSTDv03_isError(size_t code)
 {
-	return ZSTD_isError(code);
+    return ZSTD_isError(code);
 }
 
 size_t ZSTDv03_decompress( void* dst, size_t maxOriginalSize,
                      const void* src, size_t compressedSize)
 {
-	return ZSTD_decompress(dst, maxOriginalSize, src, compressedSize);
+    return ZSTD_decompress(dst, maxOriginalSize, src, compressedSize);
+}
+
+size_t ZSTDv03_findFrameCompressedSize(const void* src, size_t srcSize)
+{
+    return ZSTD_findFrameCompressedSize(src, srcSize);
 }
 
 ZSTDv03_Dctx* ZSTDv03_createDCtx(void)
 {
-	return (ZSTDv03_Dctx*)ZSTD_createDCtx();
+    return (ZSTDv03_Dctx*)ZSTD_createDCtx();
 }
 
 size_t ZSTDv03_freeDCtx(ZSTDv03_Dctx* dctx)
 {
-	return ZSTD_freeDCtx((ZSTD_DCtx*)dctx);
+    return ZSTD_freeDCtx((ZSTD_DCtx*)dctx);
 }
 
 size_t ZSTDv03_resetDCtx(ZSTDv03_Dctx* dctx)
 {
-	return ZSTD_resetDCtx((ZSTD_DCtx*)dctx);
+    return ZSTD_resetDCtx((ZSTD_DCtx*)dctx);
 }
 
 size_t ZSTDv03_nextSrcSizeToDecompress(ZSTDv03_Dctx* dctx)
 {
-	return ZSTD_nextSrcSizeToDecompress((ZSTD_DCtx*)dctx);
+    return ZSTD_nextSrcSizeToDecompress((ZSTD_DCtx*)dctx);
 }
 
 size_t ZSTDv03_decompressContinue(ZSTDv03_Dctx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
-	return ZSTD_decompressContinue((ZSTD_DCtx*)dctx, dst, maxDstSize, src, srcSize);
+    return ZSTD_decompressContinue((ZSTD_DCtx*)dctx, dst, maxDstSize, src, srcSize);
 }
