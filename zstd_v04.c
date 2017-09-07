@@ -816,13 +816,13 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
         bitD->bitContainer = *(const BYTE*)(bitD->start);
         switch(srcSize)
         {
-            case 7: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[6]) << (sizeof(size_t)*8 - 16);
-            case 6: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[5]) << (sizeof(size_t)*8 - 24);
-            case 5: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[4]) << (sizeof(size_t)*8 - 32);
-            case 4: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[3]) << 24;
-            case 3: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[2]) << 16;
-            case 2: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[1]) <<  8;
-            default:;
+            case 7: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[6]) << (sizeof(size_t)*8 - 16);/* fall-through */
+            case 6: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[5]) << (sizeof(size_t)*8 - 24);/* fall-through */
+            case 5: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[4]) << (sizeof(size_t)*8 - 32);/* fall-through */
+            case 4: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[3]) << 24; /* fall-through */
+            case 3: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[2]) << 16; /* fall-through */
+            case 2: bitD->bitContainer += (size_t)(((const BYTE*)(bitD->start))[1]) <<  8; /* fall-through */
+            default: break;
         }
         contain32 = ((const BYTE*)srcBuffer)[srcSize-1];
         if (contain32 == 0) return ERROR(GENERIC);   /* endMark not present */
@@ -882,8 +882,8 @@ MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, U32 nbBits)
 
 MEM_STATIC BIT_DStream_status BIT_reloadDStream(BIT_DStream_t* bitD)
 {
-	if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
-		return BIT_DStream_overflow;
+    if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
+        return BIT_DStream_overflow;
 
     if (bitD->ptr >= bitD->start + sizeof(bitD->bitContainer))
     {
@@ -1451,8 +1451,8 @@ static size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsi
                 else
                 {
                     bitCount -= (int)(8 * (iend - 4 - ip));
-					ip = iend - 4;
-				}
+                    ip = iend - 4;
+                }
                 bitStream = MEM_readLE32(ip) >> (bitCount & 31);
             }
         }
@@ -3326,6 +3326,35 @@ static size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
     return op-ostart;
 }
 
+static size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize)
+{
+    const BYTE* ip = (const BYTE*)src;
+    size_t remainingSize = srcSize;
+    blockProperties_t blockProperties;
+
+    /* Frame Header */
+    if (srcSize < ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);
+    if (MEM_readLE32(src) != ZSTD_MAGICNUMBER) return ERROR(prefix_unknown);
+    ip += ZSTD_frameHeaderSize_min; remainingSize -= ZSTD_frameHeaderSize_min;
+
+    /* Loop on each block */
+    while (1)
+    {
+        size_t cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
+        if (ZSTD_isError(cBlockSize)) return cBlockSize;
+
+        ip += ZSTD_blockHeaderSize;
+        remainingSize -= ZSTD_blockHeaderSize;
+        if (cBlockSize > remainingSize) return ERROR(srcSize_wrong);
+
+        if (cBlockSize == 0) break;   /* bt_end */
+
+        ip += cBlockSize;
+        remainingSize -= cBlockSize;
+    }
+
+    return ip - (const BYTE*)src;
+}
 
 /* ******************************
 *  Streaming Decompression API
@@ -3636,7 +3665,7 @@ static size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDs
                     break;
                 }
                 zbc->stage = ZBUFFds_read;
-
+		/* fall-through */
         case ZBUFFds_read:
             {
                 size_t neededInSize = ZSTD_nextSrcSizeToDecompress(zbc->zc);
@@ -3662,7 +3691,7 @@ static size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDs
                 if (ip==iend) { notDone = 0; break; }   /* no more input */
                 zbc->stage = ZBUFFds_load;
             }
-
+	    /* fall-through */
         case ZBUFFds_load:
             {
                 size_t neededInSize = ZSTD_nextSrcSizeToDecompress(zbc->zc);
@@ -3682,9 +3711,10 @@ static size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDs
                     if (!decodedSize) { zbc->stage = ZBUFFds_read; break; }   /* this was just a header */
                     zbc->outEnd = zbc->outStart +  decodedSize;
                     zbc->stage = ZBUFFds_flush;
-                    // break; /* ZBUFFds_flush follows */
+                    /* ZBUFFds_flush follows */
                 }
             }
+	    /* fall-through */
         case ZBUFFds_flush:
             {
                 size_t toFlushSize = zbc->outEnd - zbc->outStart;
@@ -3753,6 +3783,10 @@ size_t ZSTDv04_decompress(void* dst, size_t maxDstSize, const void* src, size_t 
 #endif
 }
 
+size_t ZSTDv04_findFrameCompressedSize(const void* src, size_t srcSize)
+{
+    return ZSTD_findFrameCompressedSize(src, srcSize);
+}
 
 size_t ZSTDv04_resetDCtx(ZSTDv04_Dctx* dctx) { return ZSTD_resetDCtx(dctx); }
 

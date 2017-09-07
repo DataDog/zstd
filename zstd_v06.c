@@ -910,13 +910,13 @@ MEM_STATIC size_t BITv06_initDStream(BITv06_DStream_t* bitD, const void* srcBuff
         bitD->bitContainer = *(const BYTE*)(bitD->start);
         switch(srcSize)
         {
-            case 7: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[6]) << (sizeof(bitD->bitContainer)*8 - 16);
-            case 6: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[5]) << (sizeof(bitD->bitContainer)*8 - 24);
-            case 5: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[4]) << (sizeof(bitD->bitContainer)*8 - 32);
-            case 4: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[3]) << 24;
-            case 3: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[2]) << 16;
-            case 2: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[1]) <<  8;
-            default:;
+            case 7: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[6]) << (sizeof(bitD->bitContainer)*8 - 16);/* fall-through */
+            case 6: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[5]) << (sizeof(bitD->bitContainer)*8 - 24);/* fall-through */
+            case 5: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[4]) << (sizeof(bitD->bitContainer)*8 - 32);/* fall-through */
+            case 4: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[3]) << 24; /* fall-through */
+            case 3: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[2]) << 16; /* fall-through */
+            case 2: bitD->bitContainer += (size_t)(((const BYTE*)(srcBuffer))[1]) <<  8; /* fall-through */
+            default: break;
         }
         { BYTE const lastByte = ((const BYTE*)srcBuffer)[srcSize-1];
           if (lastByte == 0) return ERROR(GENERIC);   /* endMark not present */
@@ -982,8 +982,8 @@ MEM_STATIC size_t BITv06_readBitsFast(BITv06_DStream_t* bitD, U32 nbBits)
               if status == unfinished, internal register is filled with >= (sizeof(bitD->bitContainer)*8 - 7) bits */
 MEM_STATIC BITv06_DStream_status BITv06_reloadDStream(BITv06_DStream_t* bitD)
 {
-	if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
-		return BITv06_DStream_overflow;
+    if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should never happen */
+        return BITv06_DStream_overflow;
 
     if (bitD->ptr >= bitD->start + sizeof(bitD->bitContainer)) {
         bitD->ptr -= bitD->bitsConsumed >> 3;
@@ -3729,6 +3729,37 @@ size_t ZSTDv06_decompress(void* dst, size_t dstCapacity, const void* src, size_t
 #endif
 }
 
+size_t ZSTDv06_findFrameCompressedSize(const void* src, size_t srcSize)
+{
+    const BYTE* ip = (const BYTE*)src;
+    size_t remainingSize = srcSize;
+    blockProperties_t blockProperties = { bt_compressed, 0 };
+
+    /* Frame Header */
+    {   size_t const frameHeaderSize = ZSTDv06_frameHeaderSize(src, ZSTDv06_frameHeaderSize_min);
+        if (ZSTDv06_isError(frameHeaderSize)) return frameHeaderSize;
+        if (MEM_readLE32(src) != ZSTDv06_MAGICNUMBER) return ERROR(prefix_unknown);
+        if (srcSize < frameHeaderSize+ZSTDv06_blockHeaderSize) return ERROR(srcSize_wrong);
+        ip += frameHeaderSize; remainingSize -= frameHeaderSize;
+    }
+
+    /* Loop on each block */
+    while (1) {
+        size_t const cBlockSize = ZSTDv06_getcBlockSize(ip, remainingSize, &blockProperties);
+        if (ZSTDv06_isError(cBlockSize)) return cBlockSize;
+
+        ip += ZSTDv06_blockHeaderSize;
+        remainingSize -= ZSTDv06_blockHeaderSize;
+        if (cBlockSize > remainingSize) return ERROR(srcSize_wrong);
+
+        if (cBlockSize == 0) break;   /* bt_end */
+
+        ip += cBlockSize;
+        remainingSize -= cBlockSize;
+    }
+
+    return ip - (const BYTE*)src;
+}
 
 /*_******************************
 *  Streaming Decompression API
@@ -3758,7 +3789,7 @@ size_t ZSTDv06_decompressContinue(ZSTDv06_DCtx* dctx, void* dst, size_t dstCapac
             return 0;
         }
         dctx->expected = 0;   /* not necessary to copy more */
-
+	/* fall-through */
     case ZSTDds_decodeFrameHeader:
         {   size_t result;
             memcpy(dctx->headerBuffer + ZSTDv06_frameHeaderSize_min, src, dctx->expected);
@@ -4077,7 +4108,7 @@ size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* zbd,
                     zbd->inBuff = (char*)malloc(blockSize);
                     if (zbd->inBuff == NULL) return ERROR(memory_allocation);
                 }
-                {   size_t const neededOutSize = ((size_t)1 << zbd->fParams.windowLog) + blockSize;
+                {   size_t const neededOutSize = ((size_t)1 << zbd->fParams.windowLog) + blockSize + WILDCOPY_OVERLENGTH * 2;
                     if (zbd->outBuffSize < neededOutSize) {
                         free(zbd->outBuff);
                         zbd->outBuffSize = neededOutSize;
@@ -4085,7 +4116,7 @@ size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* zbd,
                         if (zbd->outBuff == NULL) return ERROR(memory_allocation);
             }   }   }
             zbd->stage = ZBUFFds_read;
-
+	    /* fall-through */
         case ZBUFFds_read:
             {   size_t const neededInSize = ZSTDv06_nextSrcSizeToDecompress(zbd->zd);
                 if (neededInSize==0) {  /* end of frame */
@@ -4107,7 +4138,7 @@ size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* zbd,
                 if (ip==iend) { notDone = 0; break; }   /* no more input */
                 zbd->stage = ZBUFFds_load;
             }
-
+	    /* fall-through */
         case ZBUFFds_load:
             {   size_t const neededInSize = ZSTDv06_nextSrcSizeToDecompress(zbd->zd);
                 size_t const toLoad = neededInSize - zbd->inPos;   /* should always be <= remaining space within inBuff */
@@ -4128,8 +4159,9 @@ size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* zbd,
                     zbd->outEnd = zbd->outStart +  decodedSize;
                     zbd->stage = ZBUFFds_flush;
                     // break; /* ZBUFFds_flush follows */
-            }   }
-
+                }
+	    }
+	    /* fall-through */
         case ZBUFFds_flush:
             {   size_t const toFlushSize = zbd->outEnd - zbd->outStart;
                 size_t const flushedSize = ZBUFFv06_limitCopy(op, oend-op, zbd->outBuff + zbd->outStart, toFlushSize);

@@ -40,19 +40,23 @@ var (
 	ErrFrameParameterUnsupportedBy32bits ErrorCode = -6
 	ErrFrameParameterWindowTooLarge      ErrorCode = -7
 	ErrCompressionParameterUnsupported   ErrorCode = -8
-	ErrInitMissing                       ErrorCode = -9
-	ErrMemoryAllocation                  ErrorCode = -10
-	ErrStageWrong                        ErrorCode = -11
-	ErrDstSizeTooSmall                   ErrorCode = -12
-	ErrSrcSizeWrong                      ErrorCode = -13
-	ErrCorruptionDetected                ErrorCode = -14
-	ErrChecksumWrong                     ErrorCode = -15
-	ErrTableLogTooLarge                  ErrorCode = -16
-	ErrMaxSymbolValueTooLarge            ErrorCode = -17
-	ErrMaxSymbolValueTooSmall            ErrorCode = -18
-	ErrDictionaryCorrupted               ErrorCode = -19
-	ErrDictionaryWrong                   ErrorCode = -20
-	ErrMaxCode                           ErrorCode = -21
+	ErrCompressionParameterOutOfBound    ErrorCode = -9
+	ErrInitMissing                       ErrorCode = -10
+	ErrMemoryAllocation                  ErrorCode = -11
+	ErrStageWrong                        ErrorCode = -12
+	ErrDstSizeTooSmall                   ErrorCode = -13
+	ErrSrcSizeWrong                      ErrorCode = -14
+	ErrCorruptionDetected                ErrorCode = -15
+	ErrChecksumWrong                     ErrorCode = -16
+	ErrTableLogTooLarge                  ErrorCode = -17
+	ErrMaxSymbolValueTooLarge            ErrorCode = -18
+	ErrMaxSymbolValueTooSmall            ErrorCode = -19
+	ErrDictionaryCorrupted               ErrorCode = -20
+	ErrDictionaryWrong                   ErrorCode = -21
+	ErrDictionaryCreationFailed          ErrorCode = -22
+	ErrFrameIndexTooLarge                ErrorCode = -23
+	ErrSeekableIO                        ErrorCode = -24
+	ErrMaxCode                           ErrorCode = -25
 	ErrEmptySlice                                  = errors.New("Bytes slice is empty")
 
 	DefaultCompression = 5
@@ -62,7 +66,12 @@ var (
 // which can be used to preallocate a destination buffer or select a previously
 // allocated buffer from a pool.
 func CompressBound(srcSize int) int {
-	return 512 + srcSize + (srcSize >> 7) + 12
+	lowLimit := 256 * 1024 // 256 kB
+	var margin int
+	if srcSize < lowLimit {
+		margin = (lowLimit - srcSize) >> 12
+	}
+	return srcSize + (srcSize >> 8) + margin
 }
 
 // cCompressBound is a cgo call to check the go implementation above against the c code.
