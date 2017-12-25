@@ -76,6 +76,13 @@ level similar to what zlib currently provides.  In our tests, the can always
 be made to be better than zlib by chosing an appropriate level while still
 keeping compression and decompression time faster than zlib.
 
+You can run the benchmarks against your own payloads by using the Go benchmarks tool.
+Just export your payload filepath as the `PAYLOAD` environment variable and run the benchmarks:
+
+```go
+go test -bench .
+```
+
 Compression of a 7Mb pdf zstd (this wrapper) vs [czlib](https://github.com/DataDog/czlib):
 ```
 BenchmarkCompression               5     221056624 ns/op      67.34 MB/s
