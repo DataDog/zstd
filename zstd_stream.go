@@ -226,7 +226,7 @@ func (r *reader) Read(p []byte) (int, error) {
 		if err == io.EOF && r.compressionLeft == 0 {
 			return got, io.EOF
 		} else if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-			return got, fmt.Errorf("failed to read from underlying reader: %s", err)
+			return 0, fmt.Errorf("failed to read from underlying reader: %s", err)
 		}
 		src = src[:r.compressionLeft+n]
 
