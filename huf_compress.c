@@ -50,13 +50,15 @@
 #include "fse.h"        /* header compression */
 #define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
+#include "error_private.h"
 
 
 /* **************************************************************
 *  Error Management
 ****************************************************************/
+#define HUF_isError ERR_isError
 #define HUF_STATIC_ASSERT(c) { enum { HUF_static_assert = 1/(int)(!!(c)) }; }   /* use only *after* variable declarations */
-#define CHECK_V_F(e, f) size_t const e = f; if (ERR_isError(e)) return f
+#define CHECK_V_F(e, f) size_t const e = f; if (ERR_isError(e)) return e
 #define CHECK_F(f)   { CHECK_V_F(_var_err__, f); }
 
 
@@ -165,7 +167,7 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize,
 }
 
 
-size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, size_t srcSize)
+size_t HUF_readCTable (HUF_CElt* CTable, U32* maxSymbolValuePtr, const void* src, size_t srcSize)
 {
     BYTE huffWeight[HUF_SYMBOLVALUE_MAX + 1];   /* init not required, even though some static analyzer may complain */
     U32 rankVal[HUF_TABLELOG_ABSOLUTEMAX + 1];   /* large enough for values from 0 to 16 */
@@ -177,7 +179,7 @@ size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, si
 
     /* check result */
     if (tableLog > HUF_TABLELOG_MAX) return ERROR(tableLog_tooLarge);
-    if (nbSymbols > maxSymbolValue+1) return ERROR(maxSymbolValue_tooSmall);
+    if (nbSymbols > *maxSymbolValuePtr+1) return ERROR(maxSymbolValue_tooSmall);
 
     /* Prepare base value per rank */
     {   U32 n, nextRankStart = 0;
@@ -206,9 +208,10 @@ size_t HUF_readCTable (HUF_CElt* CTable, U32 maxSymbolValue, const void* src, si
                 min >>= 1;
         }   }
         /* assign value within rank, symbol order */
-        { U32 n; for (n=0; n<=maxSymbolValue; n++) CTable[n].val = valPerRank[CTable[n].nbBits]++; }
+        { U32 n; for (n=0; n<nbSymbols; n++) CTable[n].val = valPerRank[CTable[n].nbBits]++; }
     }
 
+    *maxSymbolValuePtr = nbSymbols - 1;
     return readSize;
 }
 
@@ -436,7 +439,7 @@ static void HUF_encodeSymbol(BIT_CStream_t* bitCPtr, U32 symbol, const HUF_CElt*
 
 size_t HUF_compressBound(size_t size) { return HUF_COMPRESSBOUND(size); }
 
-#define HUF_FLUSHBITS(s)  (fast ? BIT_flushBitsFast(s) : BIT_flushBits(s))
+#define HUF_FLUSHBITS(s)  BIT_flushBits(s)
 
 #define HUF_FLUSHBITS_1(stream) \
     if (sizeof((stream)->bitContainer)*8 < HUF_TABLELOG_MAX*2+7) HUF_FLUSHBITS(stream)
@@ -451,7 +454,6 @@ size_t HUF_compress1X_usingCTable(void* dst, size_t dstSize, const void* src, si
     BYTE* const oend = ostart + dstSize;
     BYTE* op = ostart;
     size_t n;
-    const unsigned fast = (dstSize >= HUF_BLOCKBOUND(srcSize));
     BIT_CStream_t bitC;
 
     /* init */

@@ -31,13 +31,13 @@
    You can contact the author at :
    - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
 ****************************************************************** */
-#ifndef HUF_H_298734234
-#define HUF_H_298734234
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
+#ifndef HUF_H_298734234
+#define HUF_H_298734234
 
 /* *** Dependencies *** */
 #include <stddef.h>    /* size_t */
@@ -124,6 +124,7 @@ HUF_PUBLIC_API size_t HUF_compress4X_wksp (void* dst, size_t dstCapacity, const 
 #define HUF_DECOMPRESS_WORKSPACE_SIZE (2 << 10)
 #define HUF_DECOMPRESS_WORKSPACE_SIZE_U32 (HUF_DECOMPRESS_WORKSPACE_SIZE / sizeof(U32))
 
+#endif   /* HUF_H_298734234 */
 
 /* ******************************************************************
  *  WARNING !!
@@ -132,7 +133,8 @@ HUF_PUBLIC_API size_t HUF_compress4X_wksp (void* dst, size_t dstCapacity, const 
  *  because they are not guaranteed to remain stable in the future.
  *  Only consider them in association with static linking.
  *******************************************************************/
-#ifdef HUF_STATIC_LINKING_ONLY
+#if defined(HUF_STATIC_LINKING_ONLY) && !defined(HUF_H_HUF_STATIC_LINKING_ONLY)
+#define HUF_H_HUF_STATIC_LINKING_ONLY
 
 /* *** Dependencies *** */
 #include "mem.h"   /* U32 */
@@ -240,7 +242,7 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
 
 /** HUF_readCTable() :
 *   Loading a CTable saved with HUF_writeCTable() */
-size_t HUF_readCTable (HUF_CElt* CTable, unsigned maxSymbolValue, const void* src, size_t srcSize);
+size_t HUF_readCTable (HUF_CElt* CTable, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
 
 
 /*
@@ -295,9 +297,6 @@ size_t HUF_decompress1X4_usingDTable(void* dst, size_t maxDstSize, const void* c
 
 #endif /* HUF_STATIC_LINKING_ONLY */
 
-
 #if defined (__cplusplus)
 }
 #endif
-
-#endif   /* HUF_H_298734234 */

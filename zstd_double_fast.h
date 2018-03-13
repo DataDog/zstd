@@ -8,23 +8,22 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
-#ifndef ZSTD_OPT_H
-#define ZSTD_OPT_H
+#ifndef ZSTD_DOUBLE_FAST_H
+#define ZSTD_DOUBLE_FAST_H
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-#include "zstd.h"   /* ZSTD_CCtx, size_t */
+#include "mem.h"      /* U32 */
+#include "zstd.h"     /* ZSTD_CCtx, size_t */
 
-size_t ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
-size_t ZSTD_compressBlock_btultra(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
-
-size_t ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
-size_t ZSTD_compressBlock_btultra_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+void ZSTD_fillDoubleHashTable(ZSTD_CCtx* cctx, const void* end, const U32 mls);
+size_t ZSTD_compressBlock_doubleFast(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+size_t ZSTD_compressBlock_doubleFast_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* ZSTD_OPT_H */
+#endif /* ZSTD_DOUBLE_FAST_H */
