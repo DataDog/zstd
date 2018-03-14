@@ -9,9 +9,9 @@ import "C"
 // ErrorCode is an error returned by the zstd library.
 type ErrorCode int
 
+// Error returns the error string given by zstd
 func (e ErrorCode) Error() string {
-	a := C.ZSTD_getErrorName(C.size_t(e))
-	return C.GoString(a)
+	return C.GoString(C.ZSTD_getErrorName(C.size_t(e)))
 }
 
 func cIsError(code int) bool {
