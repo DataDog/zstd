@@ -1,10 +1,11 @@
-/**
+/*
  * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 
@@ -60,7 +61,7 @@
 
 #define NOISELENGTH 32
 
-static const int g_compressionLevel_default = 6;
+static const int g_compressionLevel_default = 3;
 static const U32 g_selectivity_default = 9;
 
 
@@ -102,7 +103,7 @@ unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize)
 /*-********************************************************
 *  Dictionary training functions
 **********************************************************/
-static unsigned ZDICT_NbCommonBytes (register size_t val)
+static unsigned ZDICT_NbCommonBytes (size_t val)
 {
     if (MEM_isLittleEndian()) {
         if (MEM_64bits()) {
@@ -374,7 +375,7 @@ static int isIncluded(const void* in, const void* container, size_t length)
     return u==length;
 }
 
-/*! ZDICT_checkMerge
+/*! ZDICT_tryMerge() :
     check if dictItem can be merged, do it if possible
     @return : id of destination elt, 0 if not merged
 */
@@ -439,8 +440,8 @@ static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const 
 
 static void ZDICT_removeDictItem(dictItem* table, U32 id)
 {
-    /* convention : first element is nb of elts */
-    U32 const max = table->pos;
+    /* convention : table[0].pos stores nb of elts */
+    U32 const max = table[0].pos;
     U32 u;
     if (!id) return;   /* protection, should never happen */
     for (u=id; u<max-1; u++)
@@ -695,7 +696,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
         DISPLAYLEVEL(1, "Not enough memory \n");
         goto _cleanup;
     }
-    if (offcodeMax>OFFCODE_MAX) { eSize = ERROR(dictionary_wrong); goto _cleanup; }   /* too large dictionary */
+    if (offcodeMax>OFFCODE_MAX) { eSize = ERROR(dictionaryCreation_failed); goto _cleanup; }   /* too large dictionary */
     for (u=0; u<256; u++) countLit[u] = 1;   /* any character must be described */
     for (u=0; u<=offcodeMax; u++) offcodeCount[u] = 1;
     for (u=0; u<=MaxML; u++) matchLengthCount[u] = 1;
@@ -703,7 +704,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     memset(repOffset, 0, sizeof(repOffset));
     repOffset[1] = repOffset[4] = repOffset[8] = 1;
     memset(bestRepOffset, 0, sizeof(bestRepOffset));
-    if (compressionLevel==0) compressionLevel = g_compressionLevel_default;
+    if (compressionLevel<=0) compressionLevel = g_compressionLevel_default;
     params = ZSTD_getParams(compressionLevel, averageSampleSize, dictBufferSize);
     {   size_t const beginResult = ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
         if (ZSTD_isError(beginResult)) {
@@ -1056,6 +1057,8 @@ size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
     memset(&params, 0, sizeof(params));
     params.d = 8;
     params.steps = 4;
+    /* Default to level 6 since no compression level information is avaialble */
+    params.zParams.compressionLevel = 6;
     return ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, dictBufferCapacity,
                                                samplesBuffer, samplesSizes,
                                                nbSamples, &params);
