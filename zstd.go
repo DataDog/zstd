@@ -12,14 +12,16 @@ import (
 	"unsafe"
 )
 
+// Defines best and standard values for zstd cli
 const (
-	BestSpeed       = 1
-	BestCompression = 20
+	BestSpeed          = 1
+	BestCompression    = 20
+	DefaultCompression = 5
 )
 
 var (
-	ErrEmptySlice      = errors.New("Bytes slice is empty")
-	DefaultCompression = 5
+	// ErrEmptySlice is returned when there is nothing to compress
+	ErrEmptySlice = errors.New("Bytes slice is empty")
 )
 
 // CompressBound returns the worst case size needed for a destination buffer,

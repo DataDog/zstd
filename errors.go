@@ -26,6 +26,7 @@ func getError(code int) error {
 	return nil
 }
 
+// IsDstSizeTooSmallError returns whether the error correspond to zstd standard sDstSizeTooSmall error
 func IsDstSizeTooSmallError(e error) bool {
 	if e != nil && e.Error() == "Destination buffer is too small" {
 		return true
