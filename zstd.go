@@ -27,11 +27,12 @@ var (
 // CompressBound returns the worst case size needed for a destination buffer,
 // which can be used to preallocate a destination buffer or select a previously
 // allocated buffer from a pool.
+// See zstd.h to mirror implementation of ZSTD_COMPRESSBOUND
 func CompressBound(srcSize int) int {
-	lowLimit := 256 * 1024 // 256 kB
+	lowLimit := 128 << 10 // 128 kB
 	var margin int
 	if srcSize < lowLimit {
-		margin = (lowLimit - srcSize) >> 12
+		margin = (lowLimit - srcSize) >> 11
 	}
 	return srcSize + (srcSize >> 8) + margin
 }
