@@ -139,6 +139,8 @@ func BenchmarkStreamCompression(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Failed writing to compress object: %s", err)
 		}
+		// Prevent from unbound buffer growth.
+		intermediate.Reset()
 	}
 }
 
