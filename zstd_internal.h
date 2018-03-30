@@ -1,71 +1,105 @@
 /*
-    zstd_internal - common functions to include
-    Header File for include
-    Copyright (C) 2014-2016, Yann Collet.
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
+ */
 
-    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-    * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-    copyright notice, this list of conditions and the following disclaimer
-    in the documentation and/or other materials provided with the
-    distribution.
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    You can contact the author at :
-    - zstd source repository : https://github.com/Cyan4973/zstd
-*/
 #ifndef ZSTD_CCOMMON_H_MODULE
 #define ZSTD_CCOMMON_H_MODULE
+
+/* this module contains definitions which must be identical
+ * across compression, decompression and dictBuilder.
+ * It also contains a few functions useful to at least 2 of them
+ * and which benefit from being inlined */
+
+/*-*************************************
+*  Dependencies
+***************************************/
+#include "compiler.h"
+#include "mem.h"
+#include "error_private.h"
+#define ZSTD_STATIC_LINKING_ONLY
+#include "zstd.h"
+#define FSE_STATIC_LINKING_ONLY
+#include "fse.h"
+#define HUF_STATIC_LINKING_ONLY
+#include "huf.h"
+#ifndef XXH_STATIC_LINKING_ONLY
+#  define XXH_STATIC_LINKING_ONLY  /* XXH64_state_t */
+#endif
+#include "xxhash.h"                /* XXH_reset, update, digest */
+
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-/* *************************************
-*  Dependencies
+
+/*-*************************************
+*  Debug
 ***************************************/
-#include "mem.h"
-#include "error_private.h"
-#include "zstd_static.h"
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
+#  include <assert.h>
+#else
+#  ifndef assert
+#    define assert(condition) ((void)0)
+#  endif
+#endif
+
+#define ZSTD_STATIC_ASSERT(c) { enum { ZSTD_static_assert = 1/(int)(!!(c)) }; }
+
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
+#  include <stdio.h>
+extern int g_debuglog_enable;
+/* recommended values for ZSTD_DEBUG display levels :
+ * 1 : no display, enables assert() only
+ * 2 : reserved for currently active debug path
+ * 3 : events once per object lifetime (CCtx, CDict, etc.)
+ * 4 : events once per frame
+ * 5 : events once per block
+ * 6 : events once per sequence (*very* verbose) */
+#  define RAWLOG(l, ...) {                                      \
+                if ((g_debuglog_enable) & (l<=ZSTD_DEBUG)) {    \
+                    fprintf(stderr, __VA_ARGS__);               \
+            }   }
+#  define DEBUGLOG(l, ...) {                                    \
+                if ((g_debuglog_enable) & (l<=ZSTD_DEBUG)) {    \
+                    fprintf(stderr, __FILE__ ": " __VA_ARGS__); \
+                    fprintf(stderr, " \n");                     \
+            }   }
+#else
+#  define RAWLOG(l, ...)      {}    /* disabled */
+#  define DEBUGLOG(l, ...)    {}    /* disabled */
+#endif
 
 
-/* *************************************
-*  Common macros
+/*-*************************************
+*  shared macros
 ***************************************/
+#undef MIN
+#undef MAX
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
+#define CHECK_F(f) { size_t const errcod = f; if (ERR_isError(errcod)) return errcod; }  /* check and Forward error code */
+#define CHECK_E(f, e) { size_t const errcod = f; if (ERR_isError(errcod)) return ERROR(e); }  /* check and send Error code */
 
 
-/* *************************************
+/*-*************************************
 *  Common constants
 ***************************************/
-#define ZSTD_MAGICNUMBER 0xFD2FB525   /* v0.5 */
-#define ZSTD_DICT_MAGIC  0xEC30A435
+#define ZSTD_OPT_NUM    (1<<12)
+
+#define ZSTD_REP_NUM      3                 /* number of repcodes */
+#define ZSTD_REP_MOVE     (ZSTD_REP_NUM-1)
+static const U32 repStartValue[ZSTD_REP_NUM] = { 1, 4, 8 };
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
 #define GB *(1U<<30)
-
-#define BLOCKSIZE (128 KB)                 /* define, for static allocation */
-
-static const size_t ZSTD_blockHeaderSize = 3;
-static const size_t ZSTD_frameHeaderSize_min = 5;
-#define ZSTD_frameHeaderSize_max 5         /* define, for static allocation */
 
 #define BIT7 128
 #define BIT6  64
@@ -74,51 +108,88 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define BIT1   2
 #define BIT0   1
 
-#define IS_HUF 0
-#define IS_PCH 1
-#define IS_RAW 2
-#define IS_RLE 3
+#define ZSTD_WINDOWLOG_ABSOLUTEMIN 10
+#define ZSTD_WINDOWLOG_DEFAULTMAX 27 /* Default maximum allowed window log */
+static const size_t ZSTD_fcs_fieldSize[4] = { 0, 2, 4, 8 };
+static const size_t ZSTD_did_fieldSize[4] = { 0, 1, 2, 4 };
 
-#define MINMATCH 4
-#define REPCODE_STARTVALUE 1
+#define ZSTD_FRAMEIDSIZE 4
+static const size_t ZSTD_frameIdSize = ZSTD_FRAMEIDSIZE;  /* magic number size */
 
-#define MLbits   7
-#define LLbits   6
-#define Offbits  5
-#define MaxML  ((1<<MLbits) - 1)
-#define MaxLL  ((1<<LLbits) - 1)
-#define MaxOff ((1<<Offbits)- 1)
-#define MLFSELog   10
-#define LLFSELog   10
-#define OffFSELog   9
-#define MaxSeq MAX(MaxLL, MaxML)
-
-#define FSE_ENCODING_RAW     0
-#define FSE_ENCODING_RLE     1
-#define FSE_ENCODING_STATIC  2
-#define FSE_ENCODING_DYNAMIC 3
-
-
-#define HufLog 12
+#define ZSTD_BLOCKHEADERSIZE 3   /* C standard doesn't allow `static const` variable to be init using another `static const` variable */
+static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
+typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 
 #define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
 
-#define WILDCOPY_OVERLENGTH 8
+#define HufLog 12
+typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingType_e;
 
-typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
+#define LONGNBSEQ 0x7F00
+
+#define MINMATCH 3
+
+#define Litbits  8
+#define MaxLit ((1<<Litbits) - 1)
+#define MaxML   52
+#define MaxLL   35
+#define DefaultMaxOff 28
+#define MaxOff  31
+#define MaxSeq MAX(MaxLL, MaxML)   /* Assumption : MaxOff < MaxLL,MaxML */
+#define MLFSELog    9
+#define LLFSELog    9
+#define OffFSELog   8
+#define MaxFSELog  MAX(MAX(MLFSELog, LLFSELog), OffFSELog)
+
+static const U32 LL_bits[MaxLL+1] = { 0, 0, 0, 0, 0, 0, 0, 0,
+                                      0, 0, 0, 0, 0, 0, 0, 0,
+                                      1, 1, 1, 1, 2, 2, 3, 3,
+                                      4, 6, 7, 8, 9,10,11,12,
+                                     13,14,15,16 };
+static const S16 LL_defaultNorm[MaxLL+1] = { 4, 3, 2, 2, 2, 2, 2, 2,
+                                             2, 2, 2, 2, 2, 1, 1, 1,
+                                             2, 2, 2, 2, 2, 2, 2, 2,
+                                             2, 3, 2, 1, 1, 1, 1, 1,
+                                            -1,-1,-1,-1 };
+#define LL_DEFAULTNORMLOG 6  /* for static allocation */
+static const U32 LL_defaultNormLog = LL_DEFAULTNORMLOG;
+
+static const U32 ML_bits[MaxML+1] = { 0, 0, 0, 0, 0, 0, 0, 0,
+                                      0, 0, 0, 0, 0, 0, 0, 0,
+                                      0, 0, 0, 0, 0, 0, 0, 0,
+                                      0, 0, 0, 0, 0, 0, 0, 0,
+                                      1, 1, 1, 1, 2, 2, 3, 3,
+                                      4, 4, 5, 7, 8, 9,10,11,
+                                     12,13,14,15,16 };
+static const S16 ML_defaultNorm[MaxML+1] = { 1, 4, 3, 2, 2, 2, 2, 2,
+                                             2, 1, 1, 1, 1, 1, 1, 1,
+                                             1, 1, 1, 1, 1, 1, 1, 1,
+                                             1, 1, 1, 1, 1, 1, 1, 1,
+                                             1, 1, 1, 1, 1, 1, 1, 1,
+                                             1, 1, 1, 1, 1, 1,-1,-1,
+                                            -1,-1,-1,-1,-1 };
+#define ML_DEFAULTNORMLOG 6  /* for static allocation */
+static const U32 ML_defaultNormLog = ML_DEFAULTNORMLOG;
+
+static const S16 OF_defaultNorm[DefaultMaxOff+1] = { 1, 1, 1, 1, 1, 1, 2, 2,
+                                                     2, 1, 1, 1, 1, 1, 1, 1,
+                                                     1, 1, 1, 1, 1, 1, 1, 1,
+                                                    -1,-1,-1,-1,-1 };
+#define OF_DEFAULTNORMLOG 5  /* for static allocation */
+static const U32 OF_defaultNormLog = OF_DEFAULTNORMLOG;
 
 
 /*-*******************************************
 *  Shared functions to include for inlining
 *********************************************/
 static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
-
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 
 /*! ZSTD_wildcopy() :
-*   custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
-MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
+ *  custom version of memcpy(), can overwrite up to WILDCOPY_OVERLENGTH bytes (if length==0) */
+#define WILDCOPY_OVERLENGTH 8
+MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -128,6 +199,89 @@ MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
     while (op < oend);
 }
 
+MEM_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* should be faster for decoding, but strangely, not verified on all platform */
+{
+    const BYTE* ip = (const BYTE*)src;
+    BYTE* op = (BYTE*)dst;
+    BYTE* const oend = (BYTE*)dstEnd;
+    do
+        COPY8(op, ip)
+    while (op < oend);
+}
+
+
+/*-*******************************************
+*  Private declarations
+*********************************************/
+typedef struct seqDef_s {
+    U32 offset;
+    U16 litLength;
+    U16 matchLength;
+} seqDef;
+
+typedef struct {
+    seqDef* sequencesStart;
+    seqDef* sequences;
+    BYTE* litStart;
+    BYTE* lit;
+    BYTE* llCode;
+    BYTE* mlCode;
+    BYTE* ofCode;
+    U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
+    U32   longLengthPos;
+} seqStore_t;
+
+const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);   /* compress & dictBuilder */
+void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);   /* compress, dictBuilder, decodeCorpus (shouldn't get its definition from here) */
+
+/* custom memory allocation functions */
+void* ZSTD_malloc(size_t size, ZSTD_customMem customMem);
+void* ZSTD_calloc(size_t size, ZSTD_customMem customMem);
+void ZSTD_free(void* ptr, ZSTD_customMem customMem);
+
+
+MEM_STATIC U32 ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus */
+{
+    assert(val != 0);
+    {
+#   if defined(_MSC_VER)   /* Visual */
+        unsigned long r=0;
+        _BitScanReverse(&r, val);
+        return (unsigned)r;
+#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
+        return 31 - __builtin_clz(val);
+#   else   /* Software version */
+        static const U32 DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
+        U32 v = val;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        return DeBruijnClz[(v * 0x07C4ACDDU) >> 27];
+#   endif
+    }
+}
+
+
+/* ZSTD_invalidateRepCodes() :
+ * ensures next compression will not use repcodes from previous block.
+ * Note : only works with regular variant;
+ *        do not use with extDict variant ! */
+void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);   /* zstdmt, adaptive_compression (shouldn't get this definition from here) */
+
+
+typedef struct {
+    blockType_e blockType;
+    U32 lastBlock;
+    U32 origSize;
+} blockProperties_t;
+
+/*! ZSTD_getcBlockSize() :
+ *  Provides the size of compressed block from block header `src` */
+/* Used by: decompress, fullbench (does not get its definition from here) */
+size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
+                          blockProperties_t* bpPtr);
 
 #if defined (__cplusplus)
 }

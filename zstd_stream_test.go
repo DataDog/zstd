@@ -3,11 +3,13 @@ package zstd
 import (
 	"bytes"
 	"io"
+	"runtime/debug"
 	"testing"
 )
 
 func failOnError(t *testing.T, msg string, err error) {
 	if err != nil {
+		debug.PrintStack()
 		t.Fatalf("%s: %s", msg, err)
 	}
 }
