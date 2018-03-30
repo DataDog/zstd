@@ -3,6 +3,20 @@ package zstd
 /*
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
+#include "stdint.h"  // for uintptr_t
+
+// The following *_wrapper function are used for removing superflouos
+// memory allocations when calling the wrapped functions from Go code.
+// See https://github.com/golang/go/issues/24450 for details.
+
+static size_t ZSTD_compress_wrapper(uintptr_t dst, size_t maxDstSize, const uintptr_t src, size_t srcSize, int compressionLevel) {
+	return ZSTD_compress((void*)dst, maxDstSize, (const void*)src, srcSize, compressionLevel);
+}
+
+static size_t ZSTD_decompress_wrapper(uintptr_t dst, size_t maxDstSize, uintptr_t src, size_t srcSize) {
+	return ZSTD_decompress((void*)dst, maxDstSize, (const void *)src, srcSize);
+}
+
 */
 import "C"
 import (
@@ -61,10 +75,10 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 		dst = make([]byte, bound)
 	}
 
-	cWritten := C.ZSTD_compress(
-		unsafe.Pointer(&dst[0]),
+	cWritten := C.ZSTD_compress_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 		C.size_t(len(dst)),
-		unsafe.Pointer(&src[0]),
+		C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
 		C.size_t(len(src)),
 		C.int(level))
 
@@ -82,10 +96,10 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 func Decompress(dst, src []byte) ([]byte, error) {
 	decompress := func(dst, src []byte) ([]byte, error) {
 
-		cWritten := C.ZSTD_decompress(
-			unsafe.Pointer(&dst[0]),
+		cWritten := C.ZSTD_decompress_wrapper(
+			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 			C.size_t(len(dst)),
-			unsafe.Pointer(&src[0]),
+			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
 			C.size_t(len(src)))
 
 		written := int(cWritten)
