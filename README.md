@@ -2,13 +2,12 @@
 
 [C Zstd Homepage](https://github.com/Cyan4973/zstd)
 
-The current headers and C files are from *v0.5.0* (Commit [201433a](https://github.com/Cyan4973/zstd/commits/201433a7f713af056cc7ea32624eddefb55e10c8)).
-
-This version has been tested and used in Datadog production environment and is safe for use.
+The current headers and C files are from *v1.3.4* (Commit
+[2555975](https://github.com/facebook/zstd/releases/tag/v1.3.4)).
 
 ## Usage
 
-There are two main APIs: 
+There are two main APIs:
 
 * simple Compress/Decompress
 * streaming API (io.Reader/io.Writer)
@@ -70,12 +69,19 @@ NewReader(r io.Reader) io.ReadCloser
 NewReaderDict(r io.Reader, dict []byte) io.ReadCloser
 ```
 
-### Benchmarks
+### Benchmarks (benchmarked with v0.5.0)
 
 The author of Zstd also wrote lz4. Zstd is intended to occupy a speed/ratio
 level similar to what zlib currently provides.  In our tests, the can always
 be made to be better than zlib by chosing an appropriate level while still
 keeping compression and decompression time faster than zlib.
+
+You can run the benchmarks against your own payloads by using the Go benchmarks tool.
+Just export your payload filepath as the `PAYLOAD` environment variable and run the benchmarks:
+
+```go
+go test -bench .
+```
 
 Compression of a 7Mb pdf zstd (this wrapper) vs [czlib](https://github.com/DataDog/czlib):
 ```

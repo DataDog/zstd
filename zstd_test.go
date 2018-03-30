@@ -30,7 +30,7 @@ func TestCompressBound(t *testing.T) {
 	tests := []int{0, 1, 2, 10, 456, 15468, 1313, 512, 54564654653}
 	for _, test := range tests {
 		if CompressBound(test) != cCompressBound(test) {
-			t.Fatalf("For %v, results are differents: %v != %v", test,
+			t.Fatalf("For %v, results are different: %v (actual) != %v (expected)", test,
 				CompressBound(test), cCompressBound(test))
 		}
 	}

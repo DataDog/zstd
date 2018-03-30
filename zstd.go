@@ -1,7 +1,22 @@
 package zstd
 
 /*
+#define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
+#include "stdint.h"  // for uintptr_t
+
+// The following *_wrapper function are used for removing superflouos
+// memory allocations when calling the wrapped functions from Go code.
+// See https://github.com/golang/go/issues/24450 for details.
+
+static size_t ZSTD_compress_wrapper(uintptr_t dst, size_t maxDstSize, const uintptr_t src, size_t srcSize, int compressionLevel) {
+	return ZSTD_compress((void*)dst, maxDstSize, (const void*)src, srcSize, compressionLevel);
+}
+
+static size_t ZSTD_decompress_wrapper(uintptr_t dst, size_t maxDstSize, uintptr_t src, size_t srcSize) {
+	return ZSTD_decompress((void*)dst, maxDstSize, (const void *)src, srcSize);
+}
+
 */
 import "C"
 import (
@@ -11,91 +26,34 @@ import (
 	"unsafe"
 )
 
-// ErrorCode is an error returned by the zstd library.
-type ErrorCode int
-
-func (e ErrorCode) Error() string {
-	switch int(e) {
-	case -1:
-		return "Error (generic)"
-	case -2:
-		return "Unknown frame descriptor"
-	case -3:
-		return "Unsupported frame parameter"
-	case -4:
-		return "Frame parameter unsupported in 32-bits mode"
-	case -5:
-		return "Context should be init first"
-	case -6:
-		return "Allocation error: not enough memory"
-	case -7:
-		return "Operation not authorized at current processing stage"
-	case -8:
-		return "Destination buffer is too small"
-	case -9:
-		return "Src size incorrect"
-	case -10:
-		return "Corrupted block detected"
-	case -11:
-		return "tableLog requires too much memory"
-	case -12:
-		return "Unsupported max possible Symbol Value : too large"
-	case -13:
-		return "Specified maxSymbolValue is too small"
-	case -14:
-		return "Dictionary is corrupted"
-	default:
-		return ""
-	}
-}
-
+// Defines best and standard values for zstd cli
 const (
-	BestSpeed       = 1
-	BestCompression = 20
+	BestSpeed          = 1
+	BestCompression    = 20
+	DefaultCompression = 5
 )
 
 var (
-	ErrGeneric                           ErrorCode = -1
-	ErrPrefixUnknown                     ErrorCode = -2
-	ErrFrameParameterUnsupported         ErrorCode = -3
-	ErrFrameParameterUnsupportedBy32bits ErrorCode = -4
-	ErrInitMissing                       ErrorCode = -5
-	ErrMemoryAllocation                  ErrorCode = -6
-	ErrStageWrong                        ErrorCode = -7
-	ErrDstSizeTooSmall                   ErrorCode = -8
-	ErrSrcSizeWrong                      ErrorCode = -9
-	ErrCorruptionDetected                ErrorCode = -10
-	ErrTableLogTooLarge                  ErrorCode = -11
-	ErrMaxSymbolValueTooLarge            ErrorCode = -12
-	ErrMaxSymbolValueTooSmall            ErrorCode = -13
-	ErrDictionaryCorrupted               ErrorCode = -14
-	ErrEmptySlice                                  = errors.New("Bytes slice is empty")
-
-	DefaultCompression = 5
+	// ErrEmptySlice is returned when there is nothing to compress
+	ErrEmptySlice = errors.New("Bytes slice is empty")
 )
 
 // CompressBound returns the worst case size needed for a destination buffer,
 // which can be used to preallocate a destination buffer or select a previously
 // allocated buffer from a pool.
+// See zstd.h to mirror implementation of ZSTD_COMPRESSBOUND
 func CompressBound(srcSize int) int {
-	return 512 + srcSize + (srcSize >> 7) + 12
+	lowLimit := 128 << 10 // 128 kB
+	var margin int
+	if srcSize < lowLimit {
+		margin = (lowLimit - srcSize) >> 11
+	}
+	return srcSize + (srcSize >> 8) + margin
 }
 
 // cCompressBound is a cgo call to check the go implementation above against the c code.
 func cCompressBound(srcSize int) int {
 	return int(C.ZSTD_compressBound(C.size_t(srcSize)))
-}
-
-// getError returns an error for the return code, or nil if it's not an error
-func getError(code int) error {
-	if code < 0 && code >= -14 {
-		return ErrorCode(code)
-	}
-	return nil
-}
-
-func cIsError(code int) bool {
-	return int(C.ZSTD_isError(C.size_t(code))) != 0
 }
 
 // Compress src into dst.  If you have a buffer to use, you can pass it to
@@ -117,10 +75,10 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 		dst = make([]byte, bound)
 	}
 
-	cWritten := C.ZSTD_compress(
-		unsafe.Pointer(&dst[0]),
+	cWritten := C.ZSTD_compress_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 		C.size_t(len(dst)),
-		unsafe.Pointer(&src[0]),
+		C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
 		C.size_t(len(src)),
 		C.int(level))
 
@@ -134,17 +92,14 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 
 // Decompress src into dst.  If you have a buffer to use, you can pass it to
 // prevent allocation.  If it is too small, or if nil is passed, a new buffer
-// will be allocated and returned.  By default, len(src)  * 4 is allocated.
-// If the buffer is too small, it will retry with a 2x sized dst buffer up to
-// 3 times before falling back to the slower stream API (ie. if the compression
-// ratio is 32).
+// will be allocated and returned.
 func Decompress(dst, src []byte) ([]byte, error) {
 	decompress := func(dst, src []byte) ([]byte, error) {
 
-		cWritten := C.ZSTD_decompress(
-			unsafe.Pointer(&dst[0]),
+		cWritten := C.ZSTD_decompress_wrapper(
+			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 			C.size_t(len(dst)),
-			unsafe.Pointer(&src[0]),
+			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
 			C.size_t(len(src)))
 
 		written := int(cWritten)
@@ -156,16 +111,27 @@ func Decompress(dst, src []byte) ([]byte, error) {
 	}
 
 	if dst == nil {
-		// x is the 95 percentile compression ratio of zstd on points.mlti payloads
-		dst = make([]byte, len(src)*3)
+		// Attempt to use zStd to determine decompressed size (may result in error or 0)
+		size := int(C.size_t(C.ZSTD_getDecompressedSize(unsafe.Pointer(&src[0]), C.size_t(len(src)))))
+
+		if err := getError(size); err != nil {
+			return nil, err
+		}
+
+		if size > 0 {
+			dst = make([]byte, size)
+		} else {
+			dst = make([]byte, len(src)*3) // starting guess
+		}
 	}
 	for i := 0; i < 3; i++ { // 3 tries to allocate a bigger buffer
 		result, err := decompress(dst, src)
-		if err != ErrDstSizeTooSmall {
+		if !IsDstSizeTooSmallError(err) {
 			return result, err
 		}
 		dst = make([]byte, len(dst)*2) // Grow buffer by 2
 	}
+
 	// We failed getting a dst buffer of correct size, use stream API
 	r := NewReader(bytes.NewReader(src))
 	defer r.Close()
