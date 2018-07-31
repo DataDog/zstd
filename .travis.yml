@@ -10,8 +10,8 @@ os:
   - osx
 
 install:
-  - "wget http://sun.aei.polsl.pl/~sdeor/corpus/mr.bz2"
-  - "bzip2 -d mr.bz2"
+  - "wget https://github.com/DataDog/zstd/files/2246767/mr.zip"
+  - "unzip mr.zip"
 script:
   - "go build"
   - "PAYLOAD=`pwd`/mr go test -v"
