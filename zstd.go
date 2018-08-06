@@ -94,6 +94,9 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 // prevent allocation.  If it is too small, or if nil is passed, a new buffer
 // will be allocated and returned.
 func Decompress(dst, src []byte) ([]byte, error) {
+	if len(src) == 0 {
+		return []byte{}, ErrEmptySlice
+	}
 	decompress := func(dst, src []byte) ([]byte, error) {
 
 		cWritten := C.ZSTD_decompress_wrapper(
