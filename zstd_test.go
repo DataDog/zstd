@@ -84,8 +84,15 @@ func TestCompressDecompress(t *testing.T) {
 	}
 }
 
-func TestEmptySlice(t *testing.T) {
+func TestEmptySliceCompress(t *testing.T) {
 	_, err := Compress(nil, []byte{})
+	if err != ErrEmptySlice {
+		t.Fatalf("Did not get the correct error: %s", err)
+	}
+}
+
+func TestEmptySliceDecompress(t *testing.T) {
+	_, err := Decompress(nil, []byte{})
 	if err != ErrEmptySlice {
 		t.Fatalf("Did not get the correct error: %s", err)
 	}
