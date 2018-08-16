@@ -171,3 +171,18 @@ func BenchmarkStreamDecompression(b *testing.B) {
 		}
 	}
 }
+
+type breakingReader struct {
+}
+
+func (r *breakingReader) Read(p []byte) (int, error) {
+	return len(p) - 1, io.ErrUnexpectedEOF
+}
+
+func TestUnexpectedEOFHandling(t *testing.T) {
+	r := NewReader(&breakingReader{})
+	_, err := r.Read(make([]byte, 1024))
+	if err == nil {
+		t.Error("Underlying error was handled silently")
+	}
+}
