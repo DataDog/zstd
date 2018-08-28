@@ -14,6 +14,8 @@ import (
 	"unsafe"
 )
 
+var errShortRead = errors.New("short read")
+
 // Writer is an io.WriteCloser that zstd-compresses its input.
 type Writer struct {
 	CompressionLevel int
@@ -224,7 +226,7 @@ func (r *reader) Read(p []byte) (int, error) {
 		src := r.compressionBuffer
 		reader := r.underlyingReader
 		n, err := TryReadFull(reader, src[r.compressionLeft:])
-		if err != nil && err != ErrShortRead { // Handle underlying reader errors first
+		if err != nil && err != errShortRead { // Handle underlying reader errors first
 			return 0, fmt.Errorf("failed to read from underlying reader: %s", err)
 		} else if n == 0 && r.compressionLeft == 0 {
 			return got, io.EOF
@@ -271,7 +273,7 @@ func (r *reader) Read(p []byte) (int, error) {
 
 // TryReadFull reads buffer just as ReadFull does
 // Here we expect that buffer may end and we do not return ErrUnexpectedEOF as ReadAtLeast does.
-// We return ErrShortRead instead to distinguish short reads and failures.
+// We return errShortRead instead to distinguish short reads and failures.
 // We cannot use ReadFull/ReadAtLeast because it masks Reader errors, such as network failures
 // and causes panic instead of error.
 func TryReadFull(r io.Reader, buf []byte) (n int, err error) {
@@ -283,9 +285,7 @@ func TryReadFull(r io.Reader, buf []byte) (n int, err error) {
 	if n == len(buf) && err == io.EOF {
 		err = nil // EOF at the end is somewhat expected
 	} else if err == io.EOF {
-		err = ErrShortRead
+		err = errShortRead
 	}
 	return
 }
-
-var ErrShortRead = errors.New("short read")
