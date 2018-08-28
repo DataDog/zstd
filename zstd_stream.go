@@ -8,10 +8,13 @@ package zstd
 */
 import "C"
 import (
+	"errors"
 	"fmt"
 	"io"
 	"unsafe"
 )
+
+var errShortRead = errors.New("short read")
 
 // Writer is an io.WriteCloser that zstd-compresses its input.
 type Writer struct {
@@ -222,11 +225,11 @@ func (r *reader) Read(p []byte) (int, error) {
 		// Populate src
 		src := r.compressionBuffer
 		reader := r.underlyingReader
-		n, err := io.ReadFull(reader, src[r.compressionLeft:])
-		if err == io.EOF && r.compressionLeft == 0 {
-			return got, io.EOF
-		} else if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		n, err := TryReadFull(reader, src[r.compressionLeft:])
+		if err != nil && err != errShortRead { // Handle underlying reader errors first
 			return 0, fmt.Errorf("failed to read from underlying reader: %s", err)
+		} else if n == 0 && r.compressionLeft == 0 {
+			return got, io.EOF
 		}
 		src = src[:r.compressionLeft+n]
 
@@ -266,4 +269,23 @@ func (r *reader) Read(p []byte) (int, error) {
 		r.compressionBuffer = resize(r.compressionBuffer, nsize)
 	}
 	return got, nil
+}
+
+// TryReadFull reads buffer just as ReadFull does
+// Here we expect that buffer may end and we do not return ErrUnexpectedEOF as ReadAtLeast does.
+// We return errShortRead instead to distinguish short reads and failures.
+// We cannot use ReadFull/ReadAtLeast because it masks Reader errors, such as network failures
+// and causes panic instead of error.
+func TryReadFull(r io.Reader, buf []byte) (n int, err error) {
+	for n < len(buf) && err == nil {
+		var nn int
+		nn, err = r.Read(buf[n:])
+		n += nn
+	}
+	if n == len(buf) && err == io.EOF {
+		err = nil // EOF at the end is somewhat expected
+	} else if err == io.EOF {
+		err = errShortRead
+	}
+	return
 }
