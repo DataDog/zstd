@@ -3,6 +3,7 @@ package zstd
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"runtime/debug"
 	"testing"
 )
@@ -125,6 +126,27 @@ func TestStreamRealPayload(t *testing.T) {
 		t.Skip(ErrNoPayloadEnv)
 	}
 	testCompressionDecompression(t, nil, raw)
+}
+
+func TestStreamEmptyPayload(t *testing.T) {
+	w := bytes.NewBuffer(nil)
+	writer := NewWriter(w)
+	_, err := writer.Write(nil)
+	failOnError(t, "failed to write empty slice", err)
+	err = writer.Close()
+	failOnError(t, "failed to close", err)
+	compressed := w.Bytes()
+	t.Logf("compressed buffer: 0x%x", compressed)
+	// Now recheck that if we decompress, we get empty slice
+	r := bytes.NewBuffer(compressed)
+	reader := NewReader(r)
+	decompressed, err := ioutil.ReadAll(reader)
+	failOnError(t, "failed to read", err)
+	err = reader.Close()
+	failOnError(t, "failed to close", err)
+	if string(decompressed) != "" {
+		t.Fatalf("Expected empty slice as decompressed, got %v instead", decompressed)
+	}
 }
 
 func BenchmarkStreamCompression(b *testing.B) {

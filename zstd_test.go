@@ -85,9 +85,17 @@ func TestCompressDecompress(t *testing.T) {
 }
 
 func TestEmptySliceCompress(t *testing.T) {
-	_, err := Compress(nil, []byte{})
-	if err != ErrEmptySlice {
-		t.Fatalf("Did not get the correct error: %s", err)
+	compressed, err := Compress(nil, []byte{})
+	if err != nil {
+		t.Fatalf("Error while compressing: %v", err)
+	}
+	t.Logf("Compressing empty slice gives 0x%x", compressed)
+	decompressed, err := Decompress(nil, compressed)
+	if err != nil {
+		t.Fatalf("Error while compressing: %v", err)
+	}
+	if string(decompressed) != "" {
+		t.Fatalf("Expected empty slice as decompressed, got %v instead", decompressed)
 	}
 }
 
