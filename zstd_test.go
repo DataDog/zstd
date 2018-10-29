@@ -27,7 +27,7 @@ func init() {
 
 // Test our version of compress bound vs C implementation
 func TestCompressBound(t *testing.T) {
-	tests := []int{0, 1, 2, 10, 456, 15468, 1313, 512, 54564654653}
+	tests := []int{0, 1, 2, 10, 456, 15468, 1313, 512, 2147483632}
 	for _, test := range tests {
 		if CompressBound(test) != cCompressBound(test) {
 			t.Fatalf("For %v, results are different: %v (actual) != %v (expected)", test,
