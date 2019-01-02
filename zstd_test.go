@@ -106,6 +106,24 @@ func TestEmptySliceDecompress(t *testing.T) {
 	}
 }
 
+func TestDecompressZeroLengthBuf(t *testing.T) {
+	input := []byte("Hello World!")
+	out, err := Compress(nil, input)
+	if err != nil {
+		t.Fatalf("Error while compressing: %v", err)
+	}
+
+	buf := make([]byte, 0)
+	decompressed, err := Decompress(buf, out)
+	if err != nil {
+		t.Fatalf("Error while decompressing: %v", err)
+	}
+
+	if res, exp := string(input), string(decompressed); res != exp {
+		t.Fatalf("expected %s but decompressed to %s", exp, res)
+	}
+}
+
 func TestTooSmall(t *testing.T) {
 	var long bytes.Buffer
 	for i := 0; i < 10000; i++ {
