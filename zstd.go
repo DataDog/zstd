@@ -107,9 +107,6 @@ func Compress(dst, src []byte) ([]byte, error) {
 
 // CompressLevel is the same as Compress but you can pass a compression level
 func CompressLevel(dst, src []byte, level int) ([]byte, error) {
-	if len(src) == 0 {
-		return []byte{}, ErrEmptySlice
-	}
 	bound := CompressBound(len(src))
 	if cap(dst) >= bound {
 		dst = dst[0:bound] // Reuse dst buffer
@@ -117,10 +114,15 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 		dst = make([]byte, bound)
 	}
 
+	srcPtr := unsafe.Pointer(nil) // Do not point anywhere, if src is empty
+	if len(src) > 0 {
+		srcPtr = unsafe.Pointer(&src[0])
+	}
+
 	cWritten := C.ZSTD_compress(
 		unsafe.Pointer(&dst[0]),
 		C.size_t(len(dst)),
-		unsafe.Pointer(&src[0]),
+		srcPtr,
 		C.size_t(len(src)),
 		C.int(level))
 
@@ -139,6 +141,9 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 // 3 times before falling back to the slower stream API (ie. if the compression
 // ratio is 32).
 func Decompress(dst, src []byte) ([]byte, error) {
+	if len(src) == 0 {
+		return []byte{}, ErrEmptySlice
+	}
 	decompress := func(dst, src []byte) ([]byte, error) {
 
 		cWritten := C.ZSTD_decompress(
