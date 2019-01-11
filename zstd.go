@@ -123,6 +123,10 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 			C.size_t(len(src)),
 			C.int(level))
 	} else {
+		// Special case for when src is empty.
+		// If you refactor this, careful not to store unsafe.Pointer(nil) in a
+		// variable or else you'll hit
+		// https://github.com/golang/go/issues/28606
 		cWritten = C.ZSTD_compress(
 			unsafe.Pointer(&dst[0]),
 			C.size_t(len(dst)),
