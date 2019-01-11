@@ -114,17 +114,22 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 		dst = make([]byte, bound)
 	}
 
-	srcPtr := unsafe.Pointer(nil) // Do not point anywhere, if src is empty
+	var cWritten C.size_t
 	if len(src) > 0 {
-		srcPtr = unsafe.Pointer(&src[0])
+		cWritten = C.ZSTD_compress(
+			unsafe.Pointer(&dst[0]),
+			C.size_t(len(dst)),
+			unsafe.Pointer(&src[0]),
+			C.size_t(len(src)),
+			C.int(level))
+	} else {
+		cWritten = C.ZSTD_compress(
+			unsafe.Pointer(&dst[0]),
+			C.size_t(len(dst)),
+			unsafe.Pointer(nil),
+			C.size_t(len(src)),
+			C.int(level))
 	}
-
-	cWritten := C.ZSTD_compress(
-		unsafe.Pointer(&dst[0]),
-		C.size_t(len(dst)),
-		srcPtr,
-		C.size_t(len(src)),
-		C.int(level))
 
 	written := int(cWritten)
 	// Check if the return is an Error code
