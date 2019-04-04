@@ -3,20 +3,6 @@ package zstd
 /*
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
-#include "stdint.h"  // for uintptr_t
-
-// The following *_wrapper function are used for removing superflouos
-// memory allocations when calling the wrapped functions from Go code.
-// See https://github.com/golang/go/issues/24450 for details.
-
-static size_t ZSTD_compress_wrapper(uintptr_t dst, size_t maxDstSize, const uintptr_t src, size_t srcSize, int compressionLevel) {
-	return ZSTD_compress((void*)dst, maxDstSize, (const void*)src, srcSize, compressionLevel);
-}
-
-static size_t ZSTD_decompress_wrapper(uintptr_t dst, size_t maxDstSize, uintptr_t src, size_t srcSize) {
-	return ZSTD_decompress((void*)dst, maxDstSize, (const void *)src, srcSize);
-}
-
 */
 import "C"
 import (
@@ -65,6 +51,7 @@ func Compress(dst, src []byte) ([]byte, error) {
 
 // CompressLevel is the same as Compress but you can pass a compression level
 func CompressLevel(dst, src []byte, level int) ([]byte, error) {
+	var written int
 	bound := CompressBound(len(src))
 	if cap(dst) >= bound {
 		dst = dst[0:bound] // Reuse dst buffer
@@ -72,19 +59,22 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 		dst = make([]byte, bound)
 	}
 
-	srcPtr := C.uintptr_t(uintptr(0)) // Do not point anywhere, if src is empty
-	if len(src) > 0 {
-		srcPtr = C.uintptr_t(uintptr(unsafe.Pointer(&src[0])))
+	if len(src) == 0 {
+		written = int(C.ZSTD_compress(
+			unsafe.Pointer(&dst[0]),
+			C.size_t(len(dst)),
+			nil,
+			C.size_t(len(src)),
+			C.int(level)))
+	} else {
+		written = int(C.ZSTD_compress(
+			unsafe.Pointer(&dst[0]),
+			C.size_t(len(dst)),
+			unsafe.Pointer(&src[0]),
+			C.size_t(len(src)),
+			C.int(level)))
 	}
 
-	cWritten := C.ZSTD_compress_wrapper(
-		C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
-		C.size_t(len(dst)),
-		srcPtr,
-		C.size_t(len(src)),
-		C.int(level))
-
-	written := int(cWritten)
 	// Check if the return is an Error code
 	if err := getError(written); err != nil {
 		return nil, err
@@ -101,10 +91,10 @@ func Decompress(dst, src []byte) ([]byte, error) {
 	}
 	decompress := func(dst, src []byte) ([]byte, error) {
 
-		cWritten := C.ZSTD_decompress_wrapper(
-			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
+		cWritten := C.ZSTD_decompress(
+			unsafe.Pointer(&dst[0]),
 			C.size_t(len(dst)),
-			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
+			unsafe.Pointer(&src[0]),
 			C.size_t(len(src)))
 
 		written := int(cWritten)
