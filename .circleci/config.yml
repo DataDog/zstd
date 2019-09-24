@@ -31,6 +31,12 @@ jobs:
       - run: 'go build'
       - run: 'PAYLOAD=`pwd`/mr go test -v'
       - run: 'PAYLOAD=`pwd`/mr go test -bench .'
+  "golang-i386":
+    docker:
+      - image: toopher/centos-i386:centos6
+    steps:
+      - checkout
+      - run: 'linux32 --32bit i386 ./travis_test_32.sh'
 
 workflows:
   version: 2
@@ -39,3 +45,4 @@ workflows:
       - "golang-1.12"
       - "golang-1.13"
       - "golang-latest"
+      - "golang-i386"
