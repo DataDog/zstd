@@ -1,23 +1,41 @@
 version: 2
 
 jobs:
-  build:
+  "golang-1.12":
     docker:
-      - image: circleci/golang:1.11
+      - image: circleci/golang:1.12
     steps:
       - checkout
-      - run:
-          name: benchmarks-download
-          command: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
-      - run:
-          name: benchmarks-extract
-          command: 'unzip mr.zip'
-      - run:
-          name: build
-          command: 'go build'
-      - run:
-          name: tests
-          command: 'PAYLOAD=`pwd`/mr go test -v'
-      - run:
-          name: benchmarks
-          command: 'PAYLOAD=`pwd`/mr go test -bench .'
+      - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
+      - run: 'unzip mr.zip'
+      - run: 'go build'
+      - run: 'PAYLOAD=`pwd`/mr go test -v'
+      - run: 'PAYLOAD=`pwd`/mr go test -bench .'
+  "golang-1.13":
+    docker:
+      - image: circleci/golang:1.13
+    steps:
+      - checkout
+      - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
+      - run: 'unzip mr.zip'
+      - run: 'go build'
+      - run: 'PAYLOAD=`pwd`/mr go test -v'
+      - run: 'PAYLOAD=`pwd`/mr go test -bench .'
+  "golang-latest":
+    docker:
+      - image: circleci/golang:latest
+    steps:
+      - checkout
+      - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
+      - run: 'unzip mr.zip'
+      - run: 'go build'
+      - run: 'PAYLOAD=`pwd`/mr go test -v'
+      - run: 'PAYLOAD=`pwd`/mr go test -bench .'
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - "golang-1.12"
+      - "golang-1.13"
+      - "golang-latest"
