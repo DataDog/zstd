@@ -1,0 +1,23 @@
+version: 2
+
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.11
+    steps:
+      - checkout
+      - run:
+          name: benchmarks-download
+          command: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
+      - run:
+          name: benchmarks-extract
+          command: 'unzip mr.zip'
+      - run:
+          name: build
+          command: 'go build'
+      - run:
+          name: tests
+          command: 'PAYLOAD=`pwd`/mr go test -v'
+      - run:
+          name: benchmarks
+          command: 'PAYLOAD=`pwd`/mr go test -bench .'
