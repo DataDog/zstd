@@ -191,6 +191,7 @@ func BenchmarkStreamDecompression(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Failed to decompress: %s", err)
 		}
+		r.Close()
 	}
 }
 

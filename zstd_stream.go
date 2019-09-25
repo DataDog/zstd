@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"sync"
 	"unsafe"
 )
 
@@ -146,6 +147,48 @@ func (w *Writer) Close() error {
 	return nil
 }
 
+// cSize is the recommended size of reader.compressionBuffer. This func and
+// invocation allow for a one-time check for validity.
+var cSize = func() int {
+	v := int(C.ZBUFF_recommendedDInSize())
+	if v <= 0 {
+		panic(fmt.Errorf("ZBUFF_recommendedDInSize() returned invalid size: %v", v))
+	}
+	return v
+}()
+
+// dSize is the recommended size of reader.decompressionBuffer. This func and
+// invocation allow for a one-time check for validity.
+var dSize = func() int {
+	v := int(C.ZBUFF_recommendedDOutSize())
+	if v <= 0 {
+		panic(fmt.Errorf("ZBUFF_recommendedDOutSize() returned invalid size: %v", v))
+	}
+	return v
+}()
+
+// cPool is a pool of buffers for use in reader.compressionBuffer. Buffers are
+// taken from the pool in NewReaderDict, returned in reader.Close(). Returns a
+// pointer to a slice to avoid the extra allocation of returning the slice as a
+// value.
+var cPool = sync.Pool{
+	New: func() interface{} {
+		buff := make([]byte, cSize)
+		return &buff
+	},
+}
+
+// dPool is a pool of buffers for use in reader.decompressionBuffer. Buffers are
+// taken from the pool in NewReaderDict, returned in reader.Close(). Returns a
+// pointer to a slice to avoid the extra allocation of returning the slice as a
+// value.
+var dPool = sync.Pool{
+	New: func() interface{} {
+		buff := make([]byte, dSize)
+		return &buff
+	},
+}
+
 // reader is an io.ReadCloser that decompresses when read from.
 type reader struct {
 	ctx                 *C.ZBUFF_DCtx
@@ -181,22 +224,13 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 			unsafe.Pointer(&dict[0]),
 			C.size_t(len(dict)))))
 	}
-	cSize := int(C.ZBUFF_recommendedDInSize())
-	dSize := int(C.ZBUFF_recommendedDOutSize())
-	if cSize <= 0 {
-		panic(fmt.Errorf("ZBUFF_recommendedDInSize() returned invalid size: %v", cSize))
-	}
-	if dSize <= 0 {
-		panic(fmt.Errorf("ZBUFF_recommendedDOutSize() returned invalid size: %v", dSize))
-	}
-
-	compressionBuffer := make([]byte, cSize)
-	decompressionBuffer := make([]byte, dSize)
+	compressionBufferP := cPool.Get().(*[]byte)
+	decompressionBufferP := dPool.Get().(*[]byte)
 	return &reader{
 		ctx:                 ctx,
 		dict:                dict,
-		compressionBuffer:   compressionBuffer,
-		decompressionBuffer: decompressionBuffer,
+		compressionBuffer:   *compressionBufferP,
+		decompressionBuffer: *decompressionBufferP,
 		firstError:          err,
 		recommendedSrcSize:  cSize,
 		underlyingReader:    r,
@@ -205,6 +239,10 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 
 // Close frees the allocated C objects
 func (r *reader) Close() error {
+	cb := r.compressionBuffer
+	db := r.decompressionBuffer
+	cPool.Put(&cb)
+	dPool.Put(&db)
 	return getError(int(C.ZBUFF_freeDCtx(r.ctx)))
 }
 
