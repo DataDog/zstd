@@ -191,6 +191,7 @@ func BenchmarkStreamDecompression(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Failed to decompress: %s", err)
 		}
+		r.Close()
 	}
 }
 
@@ -206,5 +207,14 @@ func TestUnexpectedEOFHandling(t *testing.T) {
 	_, err := r.Read(make([]byte, 1024))
 	if err == nil {
 		t.Error("Underlying error was handled silently")
+	}
+}
+
+func TestStreamCompressionDecompressionParallel(t *testing.T) {
+	for i := 0; i < 200; i++ {
+		t.Run("", func(t2 *testing.T) {
+			t2.Parallel()
+			TestStreamCompressionDecompression(t2)
+		})
 	}
 }
