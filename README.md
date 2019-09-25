@@ -1,5 +1,9 @@
 # Zstd Go Wrapper
 
+[![CircleCI](https://circleci.com/gh/DataDog/zstd/tree/1.x.svg?style=svg)](https://circleci.com/gh/DataDog/zstd/tree/1.x)
+[![GoDoc](https://godoc.org/github.com/DataDog/zstd?status.svg)](https://godoc.org/github.com/DataDog/zstd)
+
+
 [C Zstd Homepage](https://github.com/Cyan4973/zstd)
 
 The current headers and C files are from *v1.4.1* (Commit
