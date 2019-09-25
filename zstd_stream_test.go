@@ -209,3 +209,12 @@ func TestUnexpectedEOFHandling(t *testing.T) {
 		t.Error("Underlying error was handled silently")
 	}
 }
+
+func TestStreamCompressionDecompressionParallel(t *testing.T) {
+	for i := 0; i < 200; i++ {
+		t.Run("", func(t2 *testing.T) {
+			t2.Parallel()
+			TestStreamCompressionDecompression(t2)
+		})
+	}
+}
