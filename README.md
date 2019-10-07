@@ -4,7 +4,7 @@
 [![GoDoc](https://godoc.org/github.com/DataDog/zstd?status.svg)](https://godoc.org/github.com/DataDog/zstd)
 
 
-[C Zstd Homepage](https://github.com/Cyan4973/zstd)
+[C Zstd Homepage](https://github.com/facebook/zstd)
 
 The current headers and C files are from *v1.4.1* (Commit
 [52181f8](https://github.com/facebook/zstd/releases/tag/v1.4.1)).
