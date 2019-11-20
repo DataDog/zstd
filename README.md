@@ -9,6 +9,10 @@
 The current headers and C files are from *v1.4.4* (Commit
 [10f0e699](https://github.com/facebook/zstd/releases/tag/v1.4.4)).
 
+# IMPORTANT NOTE: MEMORY CORRUPTION BUG
+
+Current versions of this library have a [serious bug](https://github.com/DataDog/zstd/issues/22#issuecomment-444317542) that can cause [data corruption](https://github.com/DataDog/zstd/issues/39). Until the bug is fixed, please use an alternative library such as https://github.com/valyala/gozstd.
+
 ## Usage
 
 There are two main APIs:
