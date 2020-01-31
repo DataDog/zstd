@@ -130,12 +130,17 @@ func (w *Writer) Write(p []byte) (int, error) {
 		w.dstBuffer = make([]byte, CompressBound(len(p)))
 	}
 
-	// ToDo: Fast path where we don't need to copy
-	w.srcBuffer = append(w.srcBuffer, p...)
+	// Do not do an extra memcopy if zstd ingest all input data
+	srcData := p
+	fastPath := len(w.srcBuffer) == 0
+	if !fastPath {
+		w.srcBuffer = append(w.srcBuffer, p...)
+		srcData = w.srcBuffer
+	}
 
 	srcPtr := C.uintptr_t(uintptr(0)) // Do not point anywhere, if src is empty
-	if len(w.srcBuffer) > 0 {
-		srcPtr = C.uintptr_t(uintptr(unsafe.Pointer(&w.srcBuffer[0])))
+	if len(srcData) > 0 {
+		srcPtr = C.uintptr_t(uintptr(unsafe.Pointer(&srcData[0])))
 	}
 
 	C.ZSTD_compressStream2_wrapper(
@@ -144,13 +149,16 @@ func (w *Writer) Write(p []byte) (int, error) {
 		C.uintptr_t(uintptr(unsafe.Pointer(&w.dstBuffer[0]))),
 		C.size_t(len(w.dstBuffer)),
 		srcPtr,
-		C.size_t(len(w.srcBuffer)),
+		C.size_t(len(srcData)),
 	)
+	runtime.KeepAlive(p) // Ensure p is kept until here so pointer doesn't disappear during C call
 	ret := int(w.resultBuffer.return_code)
 	if err := getError(ret); err != nil {
 		return 0, err
 	}
-	w.srcBuffer = w.srcBuffer[int(w.resultBuffer.bytes_consumed):]
+	if !fastPath {
+		w.srcBuffer = w.srcBuffer[int(w.resultBuffer.bytes_consumed):]
+	}
 	written := int(w.resultBuffer.bytes_written)
 
 	// Write to underlying buffer
