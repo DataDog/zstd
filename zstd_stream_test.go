@@ -149,6 +149,69 @@ func TestStreamEmptyPayload(t *testing.T) {
 	}
 }
 
+type breakingReader struct{}
+
+func (r *breakingReader) Read(p []byte) (int, error) {
+	return len(p) - 1, io.ErrUnexpectedEOF
+}
+
+func TestStreamDecompressionUnexpectedEOFHandling(t *testing.T) {
+	r := NewReader(&breakingReader{})
+	_, err := r.Read(make([]byte, 1024))
+	if err == nil {
+		t.Error("Underlying error was handled silently")
+	}
+}
+
+func TestStreamCompressionDecompressionParallel(t *testing.T) {
+	for i := 0; i < 200; i++ {
+		t.Run("", func(t2 *testing.T) {
+			t2.Parallel()
+			TestStreamCompressionDecompression(t2)
+		})
+	}
+}
+
+func TestStreamCompressionChunks(t *testing.T) {
+	MB := 1024 * 1024
+	totalSize := 100 * MB
+	chunk := 1 * MB
+
+	rawData := make([]byte, totalSize)
+	r := NewRandBytes()
+	r.Read(rawData)
+
+	compressed, _ := Compress(nil, rawData)
+	var streamCompressed bytes.Buffer
+	w := NewWriter(&streamCompressed)
+	for i := 0; i < totalSize; i += chunk {
+		end := i + chunk
+		if end >= len(rawData) {
+			end = len(rawData)
+		}
+		n, err := w.Write(rawData[i:end])
+		if err != nil {
+			t.Fatalf("Error while writing: %s", err)
+		}
+		if n != (end - i) {
+			t.Fatalf("Did not write the full ammount of data: %v != %v", n, end-i)
+		}
+	}
+	err := w.Close()
+	if err != nil {
+		t.Fatalf("Failed to close writer: %s", err)
+	}
+	streamCompressedBytes := streamCompressed.Bytes()
+	t.Logf("Compressed with single call=%v bytes, stream compressed=%v bytes", len(compressed), len(streamCompressedBytes))
+	decompressed, err := Decompress(nil, streamCompressedBytes)
+	if err != nil {
+		t.Fatalf("Failed to decompress: %s", err)
+	}
+	if !bytes.Equal(rawData, decompressed) {
+		t.Fatalf("Compression/Decompression data is not equal to original data")
+	}
+}
+
 func BenchmarkStreamCompression(b *testing.B) {
 	if raw == nil {
 		b.Fatal(ErrNoPayloadEnv)
@@ -192,29 +255,5 @@ func BenchmarkStreamDecompression(b *testing.B) {
 			b.Fatalf("Failed to decompress: %s", err)
 		}
 		r.Close()
-	}
-}
-
-type breakingReader struct {
-}
-
-func (r *breakingReader) Read(p []byte) (int, error) {
-	return len(p) - 1, io.ErrUnexpectedEOF
-}
-
-func TestUnexpectedEOFHandling(t *testing.T) {
-	r := NewReader(&breakingReader{})
-	_, err := r.Read(make([]byte, 1024))
-	if err == nil {
-		t.Error("Underlying error was handled silently")
-	}
-}
-
-func TestStreamCompressionDecompressionParallel(t *testing.T) {
-	for i := 0; i < 200; i++ {
-		t.Run("", func(t2 *testing.T) {
-			t2.Parallel()
-			TestStreamCompressionDecompression(t2)
-		})
 	}
 }
