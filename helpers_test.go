@@ -1,5 +1,10 @@
 package zstd
 
+/*
+From https://github.com/dustin/randbo
+All credits for the code below goes there :) (There wasn't a license so I'm distributing as is)
+*/
+
 import (
 	"io"
 	"math/rand"

@@ -212,6 +212,42 @@ func TestStreamCompressionChunks(t *testing.T) {
 	}
 }
 
+func TestStreamDecompressionChunks(t *testing.T) {
+	MB := 1024 * 1024
+	totalSize := 100 * MB
+	chunk := 1 * MB
+
+	rawData := make([]byte, totalSize)
+	r := NewRandBytes()
+	r.Read(rawData)
+
+	compressed, _ := Compress(nil, rawData)
+	streamDecompressed := bytes.NewReader(compressed)
+	reader := NewReader(streamDecompressed)
+
+	result := make([]byte, 0, totalSize)
+	for {
+		chunkBytes := make([]byte, chunk)
+		n, err := reader.Read(chunkBytes)
+		if err != nil && err != io.EOF {
+			t.Fatalf("Got an error while reading: %s", err)
+		}
+		result = append(result, chunkBytes[:n]...)
+		if err == io.EOF {
+			break
+		}
+	}
+
+	err := reader.Close()
+	if err != nil {
+		t.Fatalf("Failed to close writer: %s", err)
+	}
+
+	if !bytes.Equal(rawData, result) {
+		t.Fatalf("Decompression data is not equal to original data")
+	}
+}
+
 func BenchmarkStreamCompression(b *testing.B) {
 	if raw == nil {
 		b.Fatal(ErrNoPayloadEnv)
