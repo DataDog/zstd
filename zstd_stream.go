@@ -44,6 +44,7 @@ import (
 )
 
 var errShortRead = errors.New("short read")
+var errReaderClosed = errors.New("Reader is closed")
 
 // Writer is an io.WriteCloser that zstd-compresses its input.
 type Writer struct {
@@ -304,14 +305,26 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 
 // Close frees the allocated C objects
 func (r *reader) Close() error {
+	if r.firstError != nil {
+		return r.firstError
+	}
+
 	cb := r.compressionBuffer
 	db := r.decompressionBuffer
+	// Ensure that we won't resuse buffer
+	r.firstError = errReaderClosed
+	r.compressionBuffer = nil
+	r.decompressionBuffer = nil
+
 	cPool.Put(&cb)
 	dPool.Put(&db)
 	return getError(int(C.ZBUFF_freeDCtx(r.ctx)))
 }
 
 func (r *reader) Read(p []byte) (int, error) {
+	if r.firstError != nil {
+		return 0, r.firstError
+	}
 
 	// If we already have enough bytes, return
 	if r.decompSize-r.decompOff >= len(p) {
