@@ -2,10 +2,8 @@ package zstd
 
 /*
 #define ZSTD_STATIC_LINKING_ONLY
-#define ZBUFF_DISABLE_DEPRECATE_WARNINGS
 #include "stdint.h"  // for uintptr_t
 #include "zstd.h"
-#include "zbuff.h"
 
 typedef struct compressStream2_result_s {
 	size_t return_code;
