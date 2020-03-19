@@ -109,6 +109,7 @@ func NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer {
 		CompressionLevel: level,
 		ctx:              ctx,
 		dict:             dict,
+		srcBuffer:        make([]byte, 0),
 		dstBuffer:        make([]byte, CompressBound(1024)),
 		firstError:       err,
 		underlyingWriter: w,
@@ -156,11 +157,25 @@ func (w *Writer) Write(p []byte) (int, error) {
 	if err := getError(ret); err != nil {
 		return 0, err
 	}
-	if !fastPath {
-		w.srcBuffer = w.srcBuffer[int(w.resultBuffer.bytes_consumed):]
-	}
-	written := int(w.resultBuffer.bytes_written)
 
+	consumed := int(w.resultBuffer.bytes_consumed)
+	if !fastPath {
+		w.srcBuffer = w.srcBuffer[consumed:]
+	} else {
+		remaining := len(p) - consumed
+		if remaining > 0 {
+			// We still have some non-consumed data, copy remaining data to srcBuffer
+			// Try to not reallocate w.srcBuffer if we already have enough space
+			if cap(w.srcBuffer) >= remaining {
+				w.srcBuffer = w.srcBuffer[0:remaining]
+			} else {
+				w.srcBuffer = make([]byte, remaining)
+			}
+			copy(w.srcBuffer, p[consumed:])
+		}
+	}
+
+	written := int(w.resultBuffer.bytes_written)
 	// Write to underlying buffer
 	_, err := w.underlyingWriter.Write(w.dstBuffer[:written])
 
@@ -178,13 +193,14 @@ func (w *Writer) Close() error {
 	if w.firstError != nil {
 		return w.firstError
 	}
-	srcPtr := C.uintptr_t(uintptr(0)) // Do not point anywhere, if src is empty
-	if len(w.srcBuffer) > 0 {
-		srcPtr = C.uintptr_t(uintptr(unsafe.Pointer(&w.srcBuffer[0])))
-	}
 
-	w.resultBuffer.return_code = 1 // So we loop at least once
-	for w.resultBuffer.return_code > 0 {
+	ret := 1 // So we loop at least once
+	for ret > 0 {
+		srcPtr := C.uintptr_t(uintptr(0)) // Do not point anywhere, if src is empty
+		if len(w.srcBuffer) > 0 {
+			srcPtr = C.uintptr_t(uintptr(unsafe.Pointer(&w.srcBuffer[0])))
+		}
+
 		C.ZSTD_compressStream2_finish(
 			w.resultBuffer,
 			w.ctx,
@@ -193,7 +209,7 @@ func (w *Writer) Close() error {
 			srcPtr,
 			C.size_t(len(w.srcBuffer)),
 		)
-		ret := int(w.resultBuffer.return_code)
+		ret = int(w.resultBuffer.return_code)
 		if err := getError(ret); err != nil {
 			return err
 		}
