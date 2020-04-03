@@ -19,12 +19,6 @@ There are two main APIs:
 The compress/decompress APIs mirror that of lz4, while the streaming API was
 designed to be a drop-in replacement for zlib.
 
-## Current status
-
-There is currently a potential issue with the streaming `Writer` interface. See https://github.com/DataDog/zstd/issues/22 for more details.
-If you intend to use the streaming interface instead of `Compress` method, it is currently recommended to use [release 1.3.0](https://github.com/DataDog/zstd/releases/tag/v1.3.0) or earlier.
-If you are able to contribute or reproduce the issue, please let us know!
-
 ### Simple `Compress/Decompress`
 
 
@@ -79,8 +73,6 @@ NewReader(r io.Reader) io.ReadCloser
 NewReaderDict(r io.Reader, dict []byte) io.ReadCloser
 ```
 
-See section above `Current Status`
-
 ### Benchmarks (benchmarked with v0.5.0)
 
 The author of Zstd also wrote lz4. Zstd is intended to occupy a speed/ratio
@@ -124,3 +116,9 @@ Testing with size: 45951... czlib: 201.62 MB/s, zstd: 1951.57 MB/s
 ```
 
 zstd starts to shine with payloads > 1KB
+
+### Stability - Current state: STABLE
+
+The C library seems to be pretty stable and according to the author has been tested and fuzzed.
+
+For the Go wrapper, the test cover most usual cases and we have succesfully tested it on all staging and prod data.
