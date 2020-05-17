@@ -37,6 +37,11 @@ CompressLevel(dst, src []byte, level int) ([]byte, error)
 ```
 
 ```go
+// CompressLevelDict is the same as CompressLevel but you can pass a dictionary
+CompressLevelDict(dst, src []byte, level int, dict []byte) ([]byte, error)
+```
+
+```go
 // Decompress will decompress your payload into dst.
 // If you already have a buffer allocated, you can pass it to prevent allocation
 // If not, you can pass nil as dst (allocates a 4*src size as default).
@@ -44,6 +49,11 @@ CompressLevel(dst, src []byte, level int) ([]byte, error)
 // After max retries, it will switch to the slower stream API to be sure to be able
 // to decompress. Currently switches if compression ratio > 4*2**3=32.
 Decompress(dst, src []byte) ([]byte, error)
+```
+
+```go
+// DecompressDict is the same as Decompress but you can pass a dictionary
+DecompressDict(dst, src []byte, dict []byte) ([]byte, error)
 ```
 
 ### Stream API

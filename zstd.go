@@ -17,6 +17,14 @@ static size_t ZSTD_decompress_wrapper(uintptr_t dst, size_t maxDstSize, uintptr_
 	return ZSTD_decompress((void*)dst, maxDstSize, (const void *)src, srcSize);
 }
 
+static size_t ZSTD_compress_usingDict_wrapper(ZSTD_CCtx* ctx, uintptr_t dst, size_t maxDstSize, const uintptr_t src, size_t srcSize,  const uintptr_t dict, size_t dictSize, int compressionLevel) {
+	return ZSTD_compress_usingDict(ctx, (void*)dst, maxDstSize, (const void*)src, srcSize, (const void*)dict, dictSize, compressionLevel);
+}
+
+static size_t ZSTD_decompress_usingDict_wrapper(ZSTD_DCtx* ctx, uintptr_t dst, size_t maxDstSize, uintptr_t src, size_t srcSize, uintptr_t dict, size_t dictSize) {
+	return ZSTD_decompress_usingDict(ctx, (void*)dst, maxDstSize, (const void *)src, srcSize, (const void *)dict, dictSize);
+}
+
 */
 import "C"
 import (
@@ -61,11 +69,16 @@ func cCompressBound(srcSize int) int {
 // prevent allocation.  If it is too small, or if nil is passed, a new buffer
 // will be allocated and returned.
 func Compress(dst, src []byte) ([]byte, error) {
-	return CompressLevel(dst, src, DefaultCompression)
+	return CompressLevelDict(dst, src, DefaultCompression, nil)
 }
 
 // CompressLevel is the same as Compress but you can pass a compression level
 func CompressLevel(dst, src []byte, level int) ([]byte, error) {
+	return CompressLevelDict(dst, src, level, nil)
+}
+
+// CompressLevelDict is the same as CompressLevel but you can pass a dictionary
+func CompressLevelDict(dst, src []byte, level int, dict []byte) ([]byte, error) {
 	bound := CompressBound(len(src))
 	if cap(dst) >= bound {
 		dst = dst[0:bound] // Reuse dst buffer
@@ -73,20 +86,36 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 		dst = make([]byte, bound)
 	}
 
-	srcPtr := C.uintptr_t(uintptr(0)) // Do not point anywhere, if src is empty
-	if len(src) > 0 {
-		srcPtr = C.uintptr_t(uintptr(unsafe.Pointer(&src[0])))
+	var written int
+	if dict == nil {
+		srcPtr := C.uintptr_t(uintptr(0)) // Do not point anywhere, if src is empty
+		if len(src) > 0 {
+			srcPtr = C.uintptr_t(uintptr(unsafe.Pointer(&src[0])))
+		}
+
+		cWritten := C.ZSTD_compress_wrapper(
+			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
+			C.size_t(len(dst)),
+			srcPtr,
+			C.size_t(len(src)),
+			C.int(level))
+		written = int(cWritten)
+	} else {
+		ctx := C.ZSTD_createCStream()
+		cWritten := C.ZSTD_compress_usingDict_wrapper(
+			ctx,
+			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
+			C.size_t(len(dst)),
+			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
+			C.size_t(len(src)),
+			C.uintptr_t(uintptr(unsafe.Pointer(&dict[0]))),
+			C.size_t(len(dict)),
+			C.int(level),
+		)
+		written = int(cWritten)
 	}
 
-	cWritten := C.ZSTD_compress_wrapper(
-		C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
-		C.size_t(len(dst)),
-		srcPtr,
-		C.size_t(len(src)),
-		C.int(level))
-
 	runtime.KeepAlive(src)
-	written := int(cWritten)
 	// Check if the return is an Error code
 	if err := getError(written); err != nil {
 		return nil, err
@@ -98,19 +127,39 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 // prevent allocation.  If it is too small, or if nil is passed, a new buffer
 // will be allocated and returned.
 func Decompress(dst, src []byte) ([]byte, error) {
+	return DecompressDict(dst, src, nil)
+}
+
+// DecompressDict is the same as Decompress but you can pass a dictionary
+func DecompressDict(dst, src []byte, dict []byte) ([]byte, error) {
 	if len(src) == 0 {
 		return []byte{}, ErrEmptySlice
 	}
 	decompress := func(dst, src []byte) ([]byte, error) {
 
-		cWritten := C.ZSTD_decompress_wrapper(
-			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
-			C.size_t(len(dst)),
-			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
-			C.size_t(len(src)))
+		var written int
+		if dict == nil {
+			cWritten := C.ZSTD_decompress_wrapper(
+				C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
+				C.size_t(len(dst)),
+				C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
+				C.size_t(len(src)))
+			written = int(cWritten)
+		} else {
+			dctx := C.ZSTD_createDCtx()
+			cWritten := C.ZSTD_decompress_usingDict_wrapper(
+				dctx,
+				C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
+				C.size_t(len(dst)),
+				C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
+				C.size_t(len(src)),
+				C.uintptr_t(uintptr(unsafe.Pointer(&dict[0]))),
+				C.size_t(len(dict)),
+			)
+			written = int(cWritten)
+		}
 
 		runtime.KeepAlive(src)
-		written := int(cWritten)
 		// Check error
 		if err := getError(written); err != nil {
 			return nil, err

@@ -84,6 +84,38 @@ func TestCompressDecompress(t *testing.T) {
 	}
 }
 
+// Test compression with dictionary
+func TestCompressDecompressLevelDict(t *testing.T) {
+	dict, err := ioutil.ReadFile("test_dictionary")
+	if err != nil {
+		t.Fatalf("Error getting dictionary: %v", err)
+	}
+	tests := []struct {
+		Input, Compressed, Decompressed []byte
+	}{
+		{Input: []byte("Hello World!")},
+		{Input: bytes.Repeat([]byte("Hello World!"), 100)},
+		{Input: []byte(".")},
+	}
+
+	for _, tt := range tests {
+		tt.Compressed, err = CompressLevelDict(nil, tt.Input, DefaultCompression, dict)
+		if err != nil {
+			t.Fatalf("Error while compressing: %v", err)
+		}
+		t.Logf("Compressed: %v", tt.Compressed)
+		tt.Decompressed, err = DecompressDict(tt.Decompressed, tt.Compressed, dict)
+		if err != nil {
+			t.Fatalf("Error while decompressing: %v", err)
+		}
+
+		if string(tt.Input) != string(tt.Decompressed) {
+			t.Fatalf("Cannot compress and decompress: %s != %s", tt.Input, tt.Decompressed)
+		}
+	}
+
+}
+
 func TestEmptySliceCompress(t *testing.T) {
 	compressed, err := Compress(nil, []byte{})
 	if err != nil {
@@ -154,6 +186,25 @@ func TestRealPayload(t *testing.T) {
 		t.Fatalf("Failed to compress: %s", err)
 	}
 	rein, err := Decompress(nil, dst)
+	if err != nil {
+		t.Fatalf("Failed to decompress: %s", err)
+	}
+	if string(raw) != string(rein) {
+		t.Fatalf("compressed/decompressed payloads are not the same (lengths: %v & %v)", len(raw), len(rein))
+	}
+}
+
+func TestRealPayloadDict(t *testing.T) {
+	dict, err := ioutil.ReadFile("test_dictionary")
+	if err != nil {
+		t.Fatalf("Error getting dictionary: %v", err)
+	}
+
+	dst, err := CompressLevelDict(nil, raw, DefaultCompression, dict)
+	if err != nil {
+		t.Fatalf("Failed to compress: %s", err)
+	}
+	rein, err := DecompressDict(nil, dst, dict)
 	if err != nil {
 		t.Fatalf("Failed to decompress: %s", err)
 	}
