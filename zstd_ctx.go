@@ -5,7 +5,7 @@ package zstd
 #include "zstd.h"
 #include "stdint.h"  // for uintptr_t
 
-// The following *_wrapper function are used for removing superflouos
+// The following *_wrapper function are used for removing superfluous
 // memory allocations when calling the wrapped functions from Go code.
 // See https://github.com/golang/go/issues/24450 for details.
 
