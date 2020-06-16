@@ -8,7 +8,6 @@ import (
 // Test compression
 func TestCtxCompressDecompress(t *testing.T) {
 	ctx := NewCtx()
-	defer ctx.Close()
 
 	input := []byte("Hello World!")
 	out, err := ctx.Compress(nil, input)
@@ -42,7 +41,6 @@ func TestCtxCompressDecompress(t *testing.T) {
 
 func TestCtxEmptySliceCompress(t *testing.T) {
 	ctx := NewCtx()
-	defer ctx.Close()
 
 	compressed, err := ctx.Compress(nil, []byte{})
 	if err != nil {
@@ -60,7 +58,6 @@ func TestCtxEmptySliceCompress(t *testing.T) {
 
 func TestCtxEmptySliceDecompress(t *testing.T) {
 	ctx := NewCtx()
-	defer ctx.Close()
 
 	_, err := ctx.Decompress(nil, []byte{})
 	if err != ErrEmptySlice {
@@ -70,7 +67,6 @@ func TestCtxEmptySliceDecompress(t *testing.T) {
 
 func TestCtxDecompressZeroLengthBuf(t *testing.T) {
 	ctx := NewCtx()
-	defer ctx.Close()
 
 	input := []byte("Hello World!")
 	out, err := ctx.Compress(nil, input)
@@ -91,7 +87,6 @@ func TestCtxDecompressZeroLengthBuf(t *testing.T) {
 
 func TestCtxTooSmall(t *testing.T) {
 	ctx := NewCtx()
-	defer ctx.Close()
 
 	var long bytes.Buffer
 	for i := 0; i < 10000; i++ {
@@ -115,7 +110,6 @@ func TestCtxTooSmall(t *testing.T) {
 
 func TestCtxRealPayload(t *testing.T) {
 	ctx := NewCtx()
-	defer ctx.Close()
 
 	if raw == nil {
 		t.Skip(ErrNoPayloadEnv)
@@ -135,7 +129,6 @@ func TestCtxRealPayload(t *testing.T) {
 
 func BenchmarkCtxCompression(b *testing.B) {
 	ctx := NewCtx()
-	defer ctx.Close()
 
 	if raw == nil {
 		b.Fatal(ErrNoPayloadEnv)
@@ -153,7 +146,6 @@ func BenchmarkCtxCompression(b *testing.B) {
 
 func BenchmarkCtxDecompression(b *testing.B) {
 	ctx := NewCtx()
-	defer ctx.Close()
 
 	if raw == nil {
 		b.Fatal(ErrNoPayloadEnv)

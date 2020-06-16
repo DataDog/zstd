@@ -21,7 +21,6 @@ static size_t ZSTD_decompressDCtx_wrapper(ZSTD_DCtx* dctx, uintptr_t dst, size_t
 import "C"
 import (
 	"bytes"
-	"io"
 	"io/ioutil"
 	"runtime"
 	"unsafe"
@@ -40,8 +39,6 @@ type Ctx interface {
 	// prevent allocation.  If it is too small, or if nil is passed, a new buffer
 	// will be allocated and returned.
 	Decompress(dst, src []byte) ([]byte, error)
-
-	io.Closer
 }
 
 type ctx struct {
@@ -59,10 +56,13 @@ type ctx struct {
 //         use one different context per thread for parallel execution.
 //
 func NewCtx() Ctx {
-	return &ctx{
+	c := &ctx{
 		cctx: C.ZSTD_createCCtx(),
 		dctx: C.ZSTD_createDCtx(),
 	}
+
+	runtime.SetFinalizer(c, finalizeCtx)
+	return c
 }
 
 func (c *ctx) Compress(dst, src []byte) ([]byte, error) {
@@ -150,10 +150,7 @@ func (c *ctx) Decompress(dst, src []byte) ([]byte, error) {
 	return ioutil.ReadAll(r)
 }
 
-func (c *ctx) Close() error {
-	if err := getError(int(C.ZSTD_freeCCtx(c.cctx))); err != nil {
-		return err
-	}
-
-	return getError(int(C.ZSTD_freeDCtx(c.dctx)))
+func finalizeCtx(c *ctx) {
+	C.ZSTD_freeCCtx(c.cctx)
+	C.ZSTD_freeDCtx(c.dctx)
 }
