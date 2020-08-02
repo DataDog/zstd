@@ -2,8 +2,10 @@ package zstd
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"io/ioutil"
+	"log"
 	"runtime/debug"
 	"testing"
 )
@@ -146,6 +148,38 @@ func TestStreamEmptyPayload(t *testing.T) {
 	failOnError(t, "failed to close", err)
 	if string(decompressed) != "" {
 		t.Fatalf("Expected empty slice as decompressed, got %v instead", decompressed)
+	}
+}
+
+type closeableWriter struct{
+	w io.Writer
+	closed bool
+}
+
+func (c *closeableWriter) Write(p []byte) (n int, err error) {
+	if c.closed {
+		return 0, errors.New("io: Write on a closed closeableWriter")
+	}
+	return c.w.Write(p)
+}
+
+func (c *closeableWriter) Close() error {
+	c.closed = true
+	return nil
+}
+
+func TestStreamCloseError(t *testing.T) {
+	var bw bytes.Buffer
+	w := closeableWriter{w: &bw}
+	writer := NewWriter(&w)
+
+	_, err := writer.Write([]byte("cc"))
+	failOnError(t, "Failed writing to compress object", err)
+
+	w.Close()
+	if err = writer.Close(); err == nil {
+		debug.PrintStack()
+		t.Fatal("Writer.Close returned no error when writing to underlying io.Writer failed")
 	}
 }
 

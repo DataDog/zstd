@@ -231,7 +231,11 @@ func (w *Writer) Close() error {
 		}
 		w.srcBuffer = w.srcBuffer[w.resultBuffer.bytes_consumed:]
 		written := int(w.resultBuffer.bytes_written)
-		w.underlyingWriter.Write(w.dstBuffer[:written])
+		_, err := w.underlyingWriter.Write(w.dstBuffer[:written])
+		if err != nil {
+			C.ZSTD_freeCStream(w.ctx)
+			return err
+		}
 
 		if ret > 0 { // We have a hint if we need to resize the dstBuffer
 			w.dstBuffer = w.dstBuffer[:cap(w.dstBuffer)]
