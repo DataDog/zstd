@@ -1,9 +1,9 @@
 version: 2
 
 jobs:
-  "golang-1.12":
+  "golang-1.14":
     docker:
-      - image: circleci/golang:1.12
+      - image: circleci/golang:1.14
     steps:
       - checkout
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
@@ -11,9 +11,9 @@ jobs:
       - run: 'go build'
       - run: 'PAYLOAD=`pwd`/mr go test -v'
       - run: 'PAYLOAD=`pwd`/mr go test -bench .'
-  "golang-1.13":
+  "golang-1.15":
     docker:
-      - image: circleci/golang:1.13
+      - image: circleci/golang:1.15
     steps:
       - checkout
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
@@ -42,7 +42,7 @@ workflows:
   version: 2
   build:
     jobs:
-      - "golang-1.12"
-      - "golang-1.13"
+      - "golang-1.14"
+      - "golang-1.15"
       - "golang-latest"
       - "golang-i386"
