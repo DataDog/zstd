@@ -2,8 +2,10 @@ package zstd
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"io/ioutil"
+	"log"
 	"runtime/debug"
 	"testing"
 )
@@ -146,6 +148,81 @@ func TestStreamEmptyPayload(t *testing.T) {
 	failOnError(t, "failed to close", err)
 	if string(decompressed) != "" {
 		t.Fatalf("Expected empty slice as decompressed, got %v instead", decompressed)
+	}
+}
+
+func TestStreamFlush(t *testing.T) {
+	var w bytes.Buffer
+	writer := NewWriter(&w)
+	reader := NewReader(&w)
+
+	payload := "cc" // keep the payload short to make sure it will not be automatically flushed by zstd
+	buf := make([]byte, len(payload))
+
+	for i := 0; i < 5; i++ {
+		_, err := writer.Write([]byte(payload))
+		failOnError(t, "Failed writing to compress object", err)
+
+		err = writer.Flush()
+		failOnError(t, "Failed flushing compress object", err)
+
+		_, err = io.ReadFull(reader, buf)
+		failOnError(t, "Failed reading uncompress object", err)
+
+		if string(buf) != payload {
+			debug.PrintStack()
+			log.Fatal("Uncompressed object mismatch")
+		}
+	}
+
+	failOnError(t, "Failed to close compress object", writer.Close())
+	failOnError(t, "Failed to close uncompress object", reader.Close())
+}
+
+type closeableWriter struct{
+	w io.Writer
+	closed bool
+}
+
+func (c *closeableWriter) Write(p []byte) (n int, err error) {
+	if c.closed {
+		return 0, errors.New("io: Write on a closed closeableWriter")
+	}
+	return c.w.Write(p)
+}
+
+func (c *closeableWriter) Close() error {
+	c.closed = true
+	return nil
+}
+
+func TestStreamFlushError(t *testing.T) {
+	var bw bytes.Buffer
+	w := closeableWriter{w: &bw}
+	writer := NewWriter(&w)
+
+	_, err := writer.Write([]byte("cc"))
+	failOnError(t, "Failed writing to compress object", err)
+
+	w.Close()
+	if err = writer.Flush(); err == nil {
+		debug.PrintStack()
+		t.Fatal("Writer.Flush returned no error when writing to underlying io.Writer failed")
+	}
+}
+
+func TestStreamCloseError(t *testing.T) {
+	var bw bytes.Buffer
+	w := closeableWriter{w: &bw}
+	writer := NewWriter(&w)
+
+	_, err := writer.Write([]byte("cc"))
+	failOnError(t, "Failed writing to compress object", err)
+
+	w.Close()
+	if err = writer.Close(); err == nil {
+		debug.PrintStack()
+		t.Fatal("Writer.Close returned no error when writing to underlying io.Writer failed")
 	}
 }
 
