@@ -3,6 +3,7 @@ package zstd
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -92,35 +93,67 @@ func TestZstdReaderLong(t *testing.T) {
 	testCompressionDecompression(t, nil, long.Bytes())
 }
 
-func TestStreamCompressionDecompression(t *testing.T) {
+func doStreamCompressionDecompression() error {
 	payload := []byte("Hello World!")
 	repeat := 10000
 	var intermediate bytes.Buffer
 	w := NewWriterLevel(&intermediate, 4)
 	for i := 0; i < repeat; i++ {
 		_, err := w.Write(payload)
-		failOnError(t, "Failed writing to compress object", err)
+		if err != nil {
+			return fmt.Errorf("failed writing to compress object: %w", err)
+		}
 	}
-	w.Close()
+	err := w.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close compressor: %w", err)
+	}
+
 	// Decompress
 	r := NewReader(&intermediate)
 	dst := make([]byte, len(payload))
 	for i := 0; i < repeat; i++ {
 		n, err := r.Read(dst)
-		failOnError(t, "Failed to decompress", err)
+		if err != nil {
+			return fmt.Errorf("failed to decompress: %w", err)
+		}
 		if n != len(payload) {
-			t.Fatalf("Did not read enough bytes: %v != %v", n, len(payload))
+			return fmt.Errorf("did not read enough bytes: %d != %d", n, len(payload))
 		}
 		if string(dst) != string(payload) {
-			t.Fatalf("Did not read the same %s != %s", string(dst), string(payload))
+			return fmt.Errorf("Did not read the same %s != %s", string(dst), string(payload))
 		}
 	}
 	// Check EOF
 	n, err := r.Read(dst)
 	if err != io.EOF {
-		t.Fatalf("Error should have been EOF, was %s instead: (%v bytes read: %s)", err, n, dst[:n])
+		return fmt.Errorf("Error should have been EOF (%v bytes read: %s): %w",
+			n, string(dst[:n]), err)
 	}
-	failOnError(t, "Failed to close decompress object", r.Close())
+	err = r.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close decompress object: %w", err)
+	}
+	return nil
+}
+
+func TestStreamCompressionDecompressionParallel(t *testing.T) {
+	// start 100 goroutines: triggered Cgo stack growth related bugs
+	const threads = 100
+	errChan := make(chan error)
+
+	for i := 0; i < threads; i++ {
+		go func() {
+			errChan <- doStreamCompressionDecompression()
+		}()
+	}
+
+	for i := 0; i < threads; i++ {
+		err := <-errChan
+		if err != nil {
+			t.Error("task failed:", err)
+		}
+	}
 }
 
 func TestStreamRealPayload(t *testing.T) {
@@ -179,8 +212,8 @@ func TestStreamFlush(t *testing.T) {
 	failOnError(t, "Failed to close uncompress object", reader.Close())
 }
 
-type closeableWriter struct{
-	w io.Writer
+type closeableWriter struct {
+	w      io.Writer
 	closed bool
 }
 
@@ -237,15 +270,6 @@ func TestStreamDecompressionUnexpectedEOFHandling(t *testing.T) {
 	_, err := r.Read(make([]byte, 1024))
 	if err == nil {
 		t.Error("Underlying error was handled silently")
-	}
-}
-
-func TestStreamCompressionDecompressionParallel(t *testing.T) {
-	for i := 0; i < 200; i++ {
-		t.Run("", func(t2 *testing.T) {
-			t2.Parallel()
-			TestStreamCompressionDecompression(t2)
-		})
 	}
 }
 

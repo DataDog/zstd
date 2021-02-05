@@ -84,6 +84,71 @@ func TestCompressDecompress(t *testing.T) {
 	}
 }
 
+func TestCompressLevel(t *testing.T) {
+	inputs := [][]byte{
+		nil, {}, {0}, []byte("Hello World!"),
+	}
+
+	for _, input := range inputs {
+		for level := BestSpeed; level <= BestCompression; level++ {
+			out, err := CompressLevel(nil, input, level)
+			if err != nil {
+				t.Errorf("input=%#v level=%d CompressLevel failed err=%s", string(input), level, err.Error())
+				continue
+			}
+
+			orig, err := Decompress(nil, out)
+			if err != nil {
+				t.Errorf("input=%#v level=%d Decompress failed err=%s", string(input), level, err.Error())
+				continue
+			}
+			if !bytes.Equal(orig, input) {
+				t.Errorf("input=%#v level=%d orig does not match: %#v", string(input), level, string(orig))
+			}
+		}
+	}
+}
+
+func doCompressLevel(payload []byte, out []byte) error {
+	out, err := CompressLevel(out, payload, DefaultCompression)
+	if err != nil {
+		return fmt.Errorf("failed calling CompressLevel: %w", err)
+	}
+
+	orig, err := Decompress(nil, out)
+	if err != nil {
+		return fmt.Errorf("failed calling Decompress: %w", err)
+	}
+	if !bytes.Equal(orig, payload) {
+		return fmt.Errorf("orig=%#v should match payload=%#v", string(orig), string(payload))
+	}
+	return nil
+}
+
+func useStackSpaceCompressLevel(payload []byte, out []byte, level int) error {
+	if level == 0 {
+		return doCompressLevel(payload, out)
+	}
+	return useStackSpaceCompressLevel(payload, out, level-1)
+}
+
+func TestCompressLevelStackCgoBug(t *testing.T) {
+	// CompressLevel previously had a bug where it would access the wrong pointer
+	// This test would crash when run with CGODEBUG=efence=1 go test .
+	const maxStackLevels = 100
+
+	payload := []byte("Hello World!")
+	// allocate the output buffer so CompressLevel does not allocate it
+	out := make([]byte, CompressBound(len(payload)))
+
+	for level := 0; level < maxStackLevels; level++ {
+		err := useStackSpaceCompressLevel(payload, out, level)
+		if err != nil {
+			t.Fatal("CompressLevel failed:", err)
+		}
+	}
+}
+
 func TestEmptySliceCompress(t *testing.T) {
 	compressed, err := Compress(nil, []byte{})
 	if err != nil {
