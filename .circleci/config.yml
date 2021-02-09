@@ -41,12 +41,6 @@ jobs:
       - run: 'unzip mr.zip'
       - run: 'go build'
       - run: 'PAYLOAD=`pwd`/mr GODEBUG=efence=1 go test -v'
-  "golang-i386":
-    docker:
-      - image: toopher/centos-i386:centos6
-    steps:
-      - checkout
-      - run: 'linux32 --32bit i386 ./travis_test_32.sh'
 
 workflows:
   version: 2
@@ -55,4 +49,4 @@ workflows:
       - "golang-1.14"
       - "golang-1.15"
       - "golang-latest"
-      - "golang-i386"
+      - "golang-efence"
