@@ -138,8 +138,8 @@ func doStreamCompressionDecompression() error {
 }
 
 func TestStreamCompressionDecompressionParallel(t *testing.T) {
-	// start 100 goroutines: triggered Cgo stack growth related bugs
-	const threads = 100
+	// start many goroutines: triggered Cgo stack growth related bugs
+	const threads = 500
 	errChan := make(chan error)
 
 	for i := 0; i < threads; i++ {
@@ -150,6 +150,25 @@ func TestStreamCompressionDecompressionParallel(t *testing.T) {
 
 	for i := 0; i < threads; i++ {
 		err := <-errChan
+		if err != nil {
+			t.Error("task failed:", err)
+		}
+	}
+}
+
+func doStreamCompressionStackDepth(stackDepth int) error {
+	if stackDepth == 0 {
+		return doStreamCompressionDecompression()
+	}
+	return doStreamCompressionStackDepth(stackDepth - 1)
+}
+
+func TestStreamCompressionDecompressionCgoStack(t *testing.T) {
+	// this crashed with: GODEBUG=efence=1 go test .
+	const maxStackDepth = 200
+
+	for i := 0; i < maxStackDepth; i++ {
+		err := doStreamCompressionStackDepth(i)
 		if err != nil {
 			t.Error("task failed:", err)
 		}
