@@ -1,5 +1,6 @@
 # Zstd Go Wrapper
 
+
 [![CircleCI](https://circleci.com/gh/DataDog/zstd/tree/1.x.svg?style=svg)](https://circleci.com/gh/DataDog/zstd/tree/1.x)
 [![GoDoc](https://godoc.org/github.com/DataDog/zstd?status.svg)](https://godoc.org/github.com/DataDog/zstd)
 
