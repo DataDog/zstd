@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"runtime"
 	"runtime/debug"
 	"testing"
 )
@@ -138,8 +139,10 @@ func doStreamCompressionDecompression() error {
 }
 
 func TestStreamCompressionDecompressionParallel(t *testing.T) {
+	t.Logf("GoMaxProcs=%d NumCPU=%d", runtime.GOMAXPROCS(0), runtime.NumCPU())
+
 	// start 100 goroutines: triggered Cgo stack growth related bugs
-	const threads = 100
+	const threads = 500
 	errChan := make(chan error)
 
 	for i := 0; i < threads; i++ {
