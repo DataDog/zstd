@@ -68,8 +68,6 @@ func (c *ctx) CompressLevel(dst, src []byte, level int) ([]byte, error) {
 		srcPtr = &src[0]
 	}
 
-	// This does not use the dangerous uintptr trick because NewCtx returns a Ctx interface,
-	// which means that Go must assume all arguments escape to the heap.
 	cWritten := C.ZSTD_compressCCtx(
 		c.cctx,
 		unsafe.Pointer(&dst[0]),
