@@ -1,6 +1,7 @@
 #!/bin/bash
 # Get utilities
 #yum -y -q -e 0 install wget tar unzip gcc
+apt-get update
 apt-get -y install wget tar unzip gcc
 
 # Get Go
