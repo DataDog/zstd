@@ -42,7 +42,6 @@ jobs:
       - run: 'go build'
       - run: 'PAYLOAD=`pwd`/mr GODEBUG=efence=1 go test -v'
   "golang-i386":
-    resource_class: xlarge
     docker:
       - image: 32bit/ubuntu:16.04
     steps:

@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"runtime/debug"
 	"testing"
 )
@@ -139,6 +140,9 @@ func doStreamCompressionDecompression() error {
 
 func TestStreamCompressionDecompressionParallel(t *testing.T) {
 	// start many goroutines: triggered Cgo stack growth related bugs
+	if os.Getenv("DISABLE_BIG_TESTS") != "" {
+		t.Skip("Big (memory) tests are disabled")
+	}
 	const threads = 500
 	errChan := make(chan error)
 
@@ -165,6 +169,9 @@ func doStreamCompressionStackDepth(stackDepth int) error {
 
 func TestStreamCompressionDecompressionCgoStack(t *testing.T) {
 	// this crashed with: GODEBUG=efence=1 go test .
+	if os.Getenv("DISABLE_BIG_TESTS") != "" {
+		t.Skip("Big (memory) tests are disabled")
+	}
 	const maxStackDepth = 200
 
 	for i := 0; i < maxStackDepth; i++ {
