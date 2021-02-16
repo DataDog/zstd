@@ -31,6 +31,16 @@ jobs:
       - run: 'go build'
       - run: 'PAYLOAD=`pwd`/mr go test -v'
       - run: 'PAYLOAD=`pwd`/mr go test -bench .'
+  "golang-efence":
+    resource_class: xlarge
+    docker:
+      - image: circleci/golang:latest
+    steps:
+      - checkout
+      - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
+      - run: 'unzip mr.zip'
+      - run: 'go build'
+      - run: 'PAYLOAD=`pwd`/mr GODEBUG=efence=1 go test -v'
   "golang-i386":
     docker:
       - image: 32bit/ubuntu:16.04
@@ -45,4 +55,5 @@ workflows:
       - "golang-1.14"
       - "golang-1.15"
       - "golang-latest"
+      - "golang-efence"
       - "golang-i386"
