@@ -3,20 +3,6 @@ package zstd
 /*
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
-#include "stdint.h"  // for uintptr_t
-
-// The following *_wrapper function are used for removing superfluous
-// memory allocations when calling the wrapped functions from Go code.
-// See https://github.com/golang/go/issues/24450 for details.
-
-static size_t ZSTD_compressCCtx_wrapper(ZSTD_CCtx* cctx, uintptr_t dst, size_t maxDstSize, const uintptr_t src, size_t srcSize, int compressionLevel) {
-	return ZSTD_compressCCtx(cctx, (void*)dst, maxDstSize, (const void*)src, srcSize, compressionLevel);
-}
-
-static size_t ZSTD_decompressDCtx_wrapper(ZSTD_DCtx* dctx, uintptr_t dst, size_t maxDstSize, uintptr_t src, size_t srcSize) {
-	return ZSTD_decompressDCtx(dctx, (void*)dst, maxDstSize, (const void *)src, srcSize);
-}
-
 */
 import "C"
 import (
@@ -77,20 +63,19 @@ func (c *ctx) CompressLevel(dst, src []byte, level int) ([]byte, error) {
 		dst = make([]byte, bound)
 	}
 
-	srcPtr := C.uintptr_t(uintptr(0)) // Do not point anywhere, if src is empty
+	var srcPtr *byte // Do not point anywhere, if src is empty
 	if len(src) > 0 {
-		srcPtr = C.uintptr_t(uintptr(unsafe.Pointer(&src[0])))
+		srcPtr = &src[0]
 	}
 
-	cWritten := C.ZSTD_compressCCtx_wrapper(
+	cWritten := C.ZSTD_compressCCtx(
 		c.cctx,
-		C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
+		unsafe.Pointer(&dst[0]),
 		C.size_t(len(dst)),
-		srcPtr,
+		unsafe.Pointer(srcPtr),
 		C.size_t(len(src)),
 		C.int(level))
 
-	runtime.KeepAlive(src)
 	written := int(cWritten)
 	// Check if the return is an Error code
 	if err := getError(written); err != nil {
@@ -99,21 +84,19 @@ func (c *ctx) CompressLevel(dst, src []byte, level int) ([]byte, error) {
 	return dst[:written], nil
 }
 
-
 func (c *ctx) Decompress(dst, src []byte) ([]byte, error) {
 	if len(src) == 0 {
 		return []byte{}, ErrEmptySlice
 	}
 	decompress := func(dst, src []byte) ([]byte, error) {
 
-		cWritten := C.ZSTD_decompressDCtx_wrapper(
+		cWritten := C.ZSTD_decompressDCtx(
 			c.dctx,
-			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
+			unsafe.Pointer(&dst[0]),
 			C.size_t(len(dst)),
-			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
+			unsafe.Pointer(&src[0]),
 			C.size_t(len(src)))
 
-		runtime.KeepAlive(src)
 		written := int(cWritten)
 		// Check error
 		if err := getError(written); err != nil {

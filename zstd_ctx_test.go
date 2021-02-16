@@ -39,6 +39,32 @@ func TestCtxCompressDecompress(t *testing.T) {
 	}
 }
 
+func TestCtxCompressLevel(t *testing.T) {
+	inputs := [][]byte{
+		nil, {}, {0}, []byte("Hello World!"),
+	}
+
+	cctx := NewCtx()
+	for _, input := range inputs {
+		for level := BestSpeed; level <= BestCompression; level++ {
+			out, err := cctx.CompressLevel(nil, input, level)
+			if err != nil {
+				t.Errorf("input=%#v level=%d CompressLevel failed err=%s", string(input), level, err.Error())
+				continue
+			}
+
+			orig, err := Decompress(nil, out)
+			if err != nil {
+				t.Errorf("input=%#v level=%d Decompress failed err=%s", string(input), level, err.Error())
+				continue
+			}
+			if !bytes.Equal(orig, input) {
+				t.Errorf("input=%#v level=%d orig does not match: %#v", string(input), level, string(orig))
+			}
+		}
+	}
+}
+
 func TestCtxEmptySliceCompress(t *testing.T) {
 	ctx := NewCtx()
 
