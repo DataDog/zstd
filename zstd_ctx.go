@@ -63,18 +63,27 @@ func (c *ctx) CompressLevel(dst, src []byte, level int) ([]byte, error) {
 		dst = make([]byte, bound)
 	}
 
-	var srcPtr *byte // Do not point anywhere, if src is empty
-	if len(src) > 0 {
-		srcPtr = &src[0]
+	// We need unsafe.Pointer(&src[0]) in the Cgo call to avoid "Go pointer to Go pointer" panics.
+	// This means we need to special case empty input. See:
+	// https://github.com/golang/go/issues/14210#issuecomment-346402945
+	var cWritten C.size_t
+	if len(src) == 0 {
+		cWritten = C.ZSTD_compressCCtx(
+			c.cctx,
+			unsafe.Pointer(&dst[0]),
+			C.size_t(len(dst)),
+			unsafe.Pointer(nil),
+			C.size_t(0),
+			C.int(level))
+	} else {
+		cWritten = C.ZSTD_compressCCtx(
+			c.cctx,
+			unsafe.Pointer(&dst[0]),
+			C.size_t(len(dst)),
+			unsafe.Pointer(&src[0]),
+			C.size_t(len(src)),
+			C.int(level))
 	}
-
-	cWritten := C.ZSTD_compressCCtx(
-		c.cctx,
-		unsafe.Pointer(&dst[0]),
-		C.size_t(len(dst)),
-		unsafe.Pointer(srcPtr),
-		C.size_t(len(src)),
-		C.int(level))
 
 	written := int(cWritten)
 	// Check if the return is an Error code
