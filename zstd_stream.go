@@ -168,7 +168,11 @@ func (w *Writer) Write(p []byte) (int, error) {
 		srcData = w.srcBuffer
 	}
 
-	// &srcData[0] is safe: it is p or w.srcBuffer but only if len() > 0 checked above
+	if len(srcData) == 0 {
+		// this is technically unnecessary: srcData is p or w.srcBuffer, and len() > 0 checked above
+		// but this ensures the code can change without dereferencing an srcData[0]
+		return 0, nil
+	}
 	C.ZSTD_compressStream2_wrapper(
 		w.resultBuffer,
 		w.ctx,
