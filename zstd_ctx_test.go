@@ -65,6 +65,13 @@ func TestCtxCompressLevel(t *testing.T) {
 	}
 }
 
+func TestCtxCompressLevelNoGoPointers(t *testing.T) {
+	testCompressNoGoPointers(t, func(input []byte) ([]byte, error) {
+		cctx := NewCtx()
+		return cctx.CompressLevel(nil, input, BestSpeed)
+	})
+}
+
 func TestCtxEmptySliceCompress(t *testing.T) {
 	ctx := NewCtx()
 

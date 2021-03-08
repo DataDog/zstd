@@ -109,6 +109,43 @@ func TestCompressLevel(t *testing.T) {
 	}
 }
 
+// structWithGoPointers contains a byte buffer and a pointer to Go objects (slice). This means
+// Cgo checks can fail when passing a pointer to buffer:
+// "panic: runtime error: cgo argument has Go pointer to Go pointer"
+// https://github.com/golang/go/issues/14210#issuecomment-346402945
+type structWithGoPointers struct {
+	buffer [1]byte
+	slice  []byte
+}
+
+// testCompressDecompressByte ensures that functions use the correct unsafe.Pointer assignment
+// to avoid "Go pointer to Go pointer" panics.
+func testCompressNoGoPointers(t *testing.T, compressFunc func(input []byte) ([]byte, error)) {
+	t.Helper()
+
+	s := structWithGoPointers{}
+	s.buffer[0] = 0x42
+	s.slice = s.buffer[:1]
+
+	compressed, err := compressFunc(s.slice)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decompressed, err := Decompress(nil, compressed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(decompressed, s.slice) {
+		t.Errorf("decompressed=%#v input=%#v", decompressed, s.slice)
+	}
+}
+
+func TestCompressLevelNoGoPointers(t *testing.T) {
+	testCompressNoGoPointers(t, func(input []byte) ([]byte, error) {
+		return CompressLevel(nil, input, BestSpeed)
+	})
+}
+
 func doCompressLevel(payload []byte, out []byte) error {
 	out, err := CompressLevel(out, payload, DefaultCompression)
 	if err != nil {

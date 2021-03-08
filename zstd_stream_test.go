@@ -375,6 +375,22 @@ func TestStreamDecompressionChunks(t *testing.T) {
 	}
 }
 
+func TestStreamWriteNoGoPointers(t *testing.T) {
+	testCompressNoGoPointers(t, func(input []byte) ([]byte, error) {
+		buf := &bytes.Buffer{}
+		zw := NewWriter(buf)
+		_, err := zw.Write(input)
+		if err != nil {
+			return nil, err
+		}
+		err = zw.Close()
+		if err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	})
+}
+
 func BenchmarkStreamCompression(b *testing.B) {
 	if raw == nil {
 		b.Fatal(ErrNoPayloadEnv)

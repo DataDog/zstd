@@ -168,17 +168,17 @@ func (w *Writer) Write(p []byte) (int, error) {
 		srcData = w.srcBuffer
 	}
 
-	var srcPtr *byte // Do not point anywhere, if src is empty
-	if len(srcData) > 0 {
-		srcPtr = &srcData[0]
+	if len(srcData) == 0 {
+		// this is technically unnecessary: srcData is p or w.srcBuffer, and len() > 0 checked above
+		// but this ensures the code can change without dereferencing an srcData[0]
+		return 0, nil
 	}
-
 	C.ZSTD_compressStream2_wrapper(
 		w.resultBuffer,
 		w.ctx,
 		unsafe.Pointer(&w.dstBuffer[0]),
 		C.size_t(len(w.dstBuffer)),
-		unsafe.Pointer(srcPtr),
+		unsafe.Pointer(&srcData[0]),
 		C.size_t(len(srcData)),
 	)
 	ret := int(w.resultBuffer.return_code)
