@@ -147,7 +147,7 @@ struct ZSTD_0_5_X_DCtx_s
     BYTE headerBuffer[ZSTD_0_5_X_frameHeaderSize_max];
 };  /* typedef'd to ZSTD_0_5_X_DCtx within "zstd_static.h" */
 
-size_t sizeofDCtx (void) { return sizeof(ZSTD_0_5_X_DCtx); }
+size_t sizeofDCtx_0_5_x (void) { return sizeof(ZSTD_0_5_X_DCtx); }
 
 size_t ZSTD_0_5_X_decompressBegin(ZSTD_0_5_X_DCtx* dctx)
 {

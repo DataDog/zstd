@@ -399,6 +399,6 @@ divbwt_0_5_x(const sauchar_t *T, sauchar_t *U, saidx_t *A, saidx_t n) {
 }
 
 const char *
-divsufsort_version(void) {
+divsufsort_version_0_5_x(void) {
   return PROJECT_VERSION_FULL;
 }
