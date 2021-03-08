@@ -335,7 +335,7 @@ construct_BWT(const sauchar_t *T, saidx_t *SA,
 /*- Function -*/
 
 saint_t
-divsufsort(const sauchar_t *T, saidx_t *SA, saidx_t n) {
+divsufsort_0_5_x(const sauchar_t *T, saidx_t *SA, saidx_t n) {
   saidx_t *bucket_A, *bucket_B;
   saidx_t m;
   saint_t err = 0;
@@ -364,7 +364,7 @@ divsufsort(const sauchar_t *T, saidx_t *SA, saidx_t n) {
 }
 
 saidx_t
-divbwt(const sauchar_t *T, sauchar_t *U, saidx_t *A, saidx_t n) {
+divbwt_0_5_x(const sauchar_t *T, sauchar_t *U, saidx_t *A, saidx_t n) {
   saidx_t *B;
   saidx_t *bucket_A, *bucket_B;
   saidx_t m, pidx, i;

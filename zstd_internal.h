@@ -29,8 +29,8 @@
     You can contact the author at :
     - zstd source repository : https://github.com/Cyan4973/zstd
 */
-#ifndef ZSTD_CCOMMON_H_MODULE
-#define ZSTD_CCOMMON_H_MODULE
+#ifndef ZSTD_0_5_X_CCOMMON_H_MODULE
+#define ZSTD_0_5_X_CCOMMON_H_MODULE
 
 #if defined (__cplusplus)
 extern "C" {
@@ -54,8 +54,8 @@ extern "C" {
 /* *************************************
 *  Common constants
 ***************************************/
-#define ZSTD_MAGICNUMBER 0xFD2FB525   /* v0.5 */
-#define ZSTD_DICT_MAGIC  0xEC30A435
+#define ZSTD_0_5_X_MAGICNUMBER 0xFD2FB525   /* v0.5 */
+#define ZSTD_0_5_X_DICT_MAGIC  0xEC30A435
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -63,9 +63,9 @@ extern "C" {
 
 #define BLOCKSIZE (128 KB)                 /* define, for static allocation */
 
-static const size_t ZSTD_blockHeaderSize = 3;
-static const size_t ZSTD_frameHeaderSize_min = 5;
-#define ZSTD_frameHeaderSize_max 5         /* define, for static allocation */
+static const size_t ZSTD_0_5_X_blockHeaderSize = 3;
+static const size_t ZSTD_0_5_X_frameHeaderSize_min = 5;
+#define ZSTD_0_5_X_frameHeaderSize_max 5         /* define, for static allocation */
 
 #define BIT7 128
 #define BIT6  64
@@ -93,10 +93,10 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define OffFSELog   9
 #define MaxSeq MAX(MaxLL, MaxML)
 
-#define FSE_ENCODING_RAW     0
-#define FSE_ENCODING_RLE     1
-#define FSE_ENCODING_STATIC  2
-#define FSE_ENCODING_DYNAMIC 3
+#define FSE_0_5_X_ENCODING_RAW     0
+#define FSE_0_5_X_ENCODING_RLE     1
+#define FSE_0_5_X_ENCODING_STATIC  2
+#define FSE_0_5_X_ENCODING_DYNAMIC 3
 
 
 #define HufLog 12
@@ -112,13 +112,13 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 /*-*******************************************
 *  Shared functions to include for inlining
 *********************************************/
-static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
+static void ZSTD_0_5_X_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 
-#define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
+#define COPY8(d,s) { ZSTD_0_5_X_copy8(d,s); d+=8; s+=8; }
 
-/*! ZSTD_wildcopy() :
+/*! ZSTD_0_5_X_wildcopy() :
 *   custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
-MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
+MEM_STATIC void ZSTD_0_5_X_wildcopy(void* dst, const void* src, size_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -133,4 +133,4 @@ MEM_STATIC void ZSTD_wildcopy(void* dst, const void* src, size_t length)
 }
 #endif
 
-#endif   /* ZSTD_CCOMMON_H_MODULE */
+#endif   /* ZSTD_0_5_X_CCOMMON_H_MODULE */

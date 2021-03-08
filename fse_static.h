@@ -32,8 +32,8 @@
    - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
    - Public forum : https://groups.google.com/forum/#!forum/lz4c
 ****************************************************************** */
-#ifndef FSE_STATIC_H
-#define FSE_STATIC_H
+#ifndef FSE_0_5_X_STATIC_H
+#define FSE_0_5_X_STATIC_H
 
 #if defined (__cplusplus)
 extern "C" {
@@ -51,32 +51,32 @@ extern "C" {
 *  Static allocation
 *******************************************/
 /* FSE buffer bounds */
-#define FSE_NCOUNTBOUND 512
-#define FSE_BLOCKBOUND(size) (size + (size>>7))
-#define FSE_COMPRESSBOUND(size) (FSE_NCOUNTBOUND + FSE_BLOCKBOUND(size))   /* Macro version, useful for static allocation */
+#define FSE_0_5_X_NCOUNTBOUND 512
+#define FSE_0_5_X_BLOCKBOUND(size) (size + (size>>7))
+#define FSE_0_5_X_COMPRESSBOUND(size) (FSE_0_5_X_NCOUNTBOUND + FSE_0_5_X_BLOCKBOUND(size))   /* Macro version, useful for static allocation */
 
 /* It is possible to statically allocate FSE CTable/DTable as a table of unsigned using below macros */
-#define FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue)   (1 + (1<<(maxTableLog-1)) + ((maxSymbolValue+1)*2))
-#define FSE_DTABLE_SIZE_U32(maxTableLog)                   (1 + (1<<maxTableLog))
+#define FSE_0_5_X_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue)   (1 + (1<<(maxTableLog-1)) + ((maxSymbolValue+1)*2))
+#define FSE_0_5_X_DTABLE_SIZE_U32(maxTableLog)                   (1 + (1<<maxTableLog))
 
 
 /* *****************************************
 *  FSE advanced API
 *******************************************/
-size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
-/* same as FSE_count(), but blindly trusts that all byte values within src are <= *maxSymbolValuePtr  */
+size_t FSE_0_5_X_countFast(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
+/* same as FSE_0_5_X_count(), but blindly trusts that all byte values within src are <= *maxSymbolValuePtr  */
 
-size_t FSE_buildCTable_raw (FSE_CTable* ct, unsigned nbBits);
-/* build a fake FSE_CTable, designed to not compress an input, where each symbol uses nbBits */
+size_t FSE_0_5_X_buildCTable_raw (FSE_0_5_X_CTable* ct, unsigned nbBits);
+/* build a fake FSE_0_5_X_CTable, designed to not compress an input, where each symbol uses nbBits */
 
-size_t FSE_buildCTable_rle (FSE_CTable* ct, unsigned char symbolValue);
-/* build a fake FSE_CTable, designed to compress always the same symbolValue */
+size_t FSE_0_5_X_buildCTable_rle (FSE_0_5_X_CTable* ct, unsigned char symbolValue);
+/* build a fake FSE_0_5_X_CTable, designed to compress always the same symbolValue */
 
-size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits);
-/* build a fake FSE_DTable, designed to read an uncompressed bitstream where each symbol uses nbBits */
+size_t FSE_0_5_X_buildDTable_raw (FSE_0_5_X_DTable* dt, unsigned nbBits);
+/* build a fake FSE_0_5_X_DTable, designed to read an uncompressed bitstream where each symbol uses nbBits */
 
-size_t FSE_buildDTable_rle (FSE_DTable* dt, unsigned char symbolValue);
-/* build a fake FSE_DTable, designed to always generate the same symbolValue */
+size_t FSE_0_5_X_buildDTable_rle (FSE_0_5_X_DTable* dt, unsigned char symbolValue);
+/* build a fake FSE_0_5_X_DTable, designed to always generate the same symbolValue */
 
 
 /* *****************************************
@@ -95,16 +95,16 @@ typedef struct
     const void* stateTable;
     const void* symbolTT;
     unsigned    stateLog;
-} FSE_CState_t;
+} FSE_0_5_X_CState_t;
 
-static void FSE_initCState(FSE_CState_t* CStatePtr, const FSE_CTable* ct);
+static void FSE_0_5_X_initCState(FSE_0_5_X_CState_t* CStatePtr, const FSE_0_5_X_CTable* ct);
 
-static void FSE_encodeSymbol(BIT_CStream_t* bitC, FSE_CState_t* CStatePtr, unsigned symbol);
+static void FSE_0_5_X_encodeSymbol(BIT_CStream_t* bitC, FSE_0_5_X_CState_t* CStatePtr, unsigned symbol);
 
-static void FSE_flushCState(BIT_CStream_t* bitC, const FSE_CState_t* CStatePtr);
+static void FSE_0_5_X_flushCState(BIT_CStream_t* bitC, const FSE_0_5_X_CState_t* CStatePtr);
 
 /*!
-These functions are inner components of FSE_compress_usingCTable().
+These functions are inner components of FSE_0_5_X_compress_usingCTable().
 They allow the creation of custom streams, mixing multiple tables and bit sources.
 
 A key property to keep in mind is that encoding and decoding are done **in reverse direction**.
@@ -112,20 +112,20 @@ So the first symbol you will encode is the last you will decode, like a LIFO sta
 
 You will need a few variables to track your CStream. They are :
 
-FSE_CTable    ct;         // Provided by FSE_buildCTable()
+FSE_0_5_X_CTable    ct;         // Provided by FSE_0_5_X_buildCTable()
 BIT_CStream_t bitStream;  // bitStream tracking structure
-FSE_CState_t  state;      // State tracking structure (can have several)
+FSE_0_5_X_CState_t  state;      // State tracking structure (can have several)
 
 
 The first thing to do is to init bitStream and state.
     size_t errorCode = BIT_initCStream(&bitStream, dstBuffer, maxDstSize);
-    FSE_initCState(&state, ct);
+    FSE_0_5_X_initCState(&state, ct);
 
-Note that BIT_initCStream() can produce an error code, so its result should be tested, using FSE_isError();
+Note that BIT_initCStream() can produce an error code, so its result should be tested, using FSE_0_5_X_isError();
 You can then encode your input data, byte after byte.
-FSE_encodeSymbol() outputs a maximum of 'tableLog' bits at a time.
+FSE_0_5_X_encodeSymbol() outputs a maximum of 'tableLog' bits at a time.
 Remember decoding will be done in reverse direction.
-    FSE_encodeByte(&bitStream, &state, symbol);
+    FSE_0_5_X_encodeByte(&bitStream, &state, symbol);
 
 At any time, you can also add any bit sequence.
 Note : maximum allowed nbBits is 25, for compatibility with 32-bits decoders
@@ -137,12 +137,12 @@ Writing data to memory is a manual operation, performed by the flushBits functio
     BIT_flushBits(&bitStream);
 
 Your last FSE encoding operation shall be to flush your last state value(s).
-    FSE_flushState(&bitStream, &state);
+    FSE_0_5_X_flushState(&bitStream, &state);
 
 Finally, you must close the bitStream.
 The function returns the size of CStream in bytes.
 If data couldn't fit into dstBuffer, it will return a 0 ( == not compressible)
-If there is an error, it returns an errorCode (which can be tested using FSE_isError()).
+If there is an error, it returns an errorCode (which can be tested using FSE_0_5_X_isError()).
     size_t size = BIT_closeCStream(&bitStream);
 */
 
@@ -154,37 +154,37 @@ typedef struct
 {
     size_t      state;
     const void* table;   /* precise table may vary, depending on U16 */
-} FSE_DState_t;
+} FSE_0_5_X_DState_t;
 
 
-static void     FSE_initDState(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD, const FSE_DTable* dt);
+static void     FSE_0_5_X_initDState(FSE_0_5_X_DState_t* DStatePtr, BIT_DStream_t* bitD, const FSE_0_5_X_DTable* dt);
 
-static unsigned char FSE_decodeSymbol(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD);
+static unsigned char FSE_0_5_X_decodeSymbol(FSE_0_5_X_DState_t* DStatePtr, BIT_DStream_t* bitD);
 
-static unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr);
+static unsigned FSE_0_5_X_endOfDState(const FSE_0_5_X_DState_t* DStatePtr);
 
 /*!
-Let's now decompose FSE_decompress_usingDTable() into its unitary components.
+Let's now decompose FSE_0_5_X_decompress_usingDTable() into its unitary components.
 You will decode FSE-encoded symbols from the bitStream,
 and also any other bitFields you put in, **in reverse order**.
 
 You will need a few variables to track your bitStream. They are :
 
 BIT_DStream_t DStream;    // Stream context
-FSE_DState_t  DState;     // State context. Multiple ones are possible
-FSE_DTable*   DTablePtr;  // Decoding table, provided by FSE_buildDTable()
+FSE_0_5_X_DState_t  DState;     // State context. Multiple ones are possible
+FSE_0_5_X_DTable*   DTablePtr;  // Decoding table, provided by FSE_0_5_X_buildDTable()
 
 The first thing to do is to init the bitStream.
     errorCode = BIT_initDStream(&DStream, srcBuffer, srcSize);
 
 You should then retrieve your initial state(s)
 (in reverse flushing order if you have several ones) :
-    errorCode = FSE_initDState(&DState, &DStream, DTablePtr);
+    errorCode = FSE_0_5_X_initDState(&DState, &DStream, DTablePtr);
 
 You can then decode your data, symbol after symbol.
-For information the maximum number of bits read by FSE_decodeSymbol() is 'tableLog'.
+For information the maximum number of bits read by FSE_0_5_X_decodeSymbol() is 'tableLog'.
 Keep in mind that symbols are decoded in reverse order, like a LIFO stack (last in, first out).
-    unsigned char symbol = FSE_decodeSymbol(&DState, &DStream);
+    unsigned char symbol = FSE_0_5_X_decodeSymbol(&DState, &DStream);
 
 You can retrieve any bitfield you eventually stored into the bitStream (in reverse order)
 Note : maximum allowed nbBits is 25, for 32-bits compatibility
@@ -192,7 +192,7 @@ Note : maximum allowed nbBits is 25, for 32-bits compatibility
 
 All above operations only read from local register (which size depends on size_t).
 Refueling the register from memory is manually performed by the reload method.
-    endSignal = FSE_reloadDStream(&DStream);
+    endSignal = FSE_0_5_X_reloadDStream(&DStream);
 
 BIT_reloadDStream() result tells if there is still some more data to read from DStream.
 BIT_DStream_unfinished : there is still some data left into the DStream.
@@ -209,14 +209,14 @@ When it's done, verify decompression is fully completed, by checking both DStrea
 Checking if DStream has reached its end is performed by :
     BIT_endOfDStream(&DStream);
 Check also the states. There might be some symbols left there, if some high probability ones (>50%) are possible.
-    FSE_endOfDState(&DState);
+    FSE_0_5_X_endOfDState(&DState);
 */
 
 
 /* *****************************************
 *  FSE unsafe API
 *******************************************/
-static unsigned char FSE_decodeSymbolFast(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD);
+static unsigned char FSE_0_5_X_decodeSymbolFast(FSE_0_5_X_DState_t* DStatePtr, BIT_DStream_t* bitD);
 /* faster, but works only if nbBits is always >= 1 (otherwise, result will be corrupted) */
 
 
@@ -226,9 +226,9 @@ static unsigned char FSE_decodeSymbolFast(FSE_DState_t* DStatePtr, BIT_DStream_t
 typedef struct {
     int deltaFindState;
     U32 deltaNbBits;
-} FSE_symbolCompressionTransform; /* total 8 bytes */
+} FSE_0_5_X_symbolCompressionTransform; /* total 8 bytes */
 
-MEM_STATIC void FSE_initCState(FSE_CState_t* statePtr, const FSE_CTable* ct)
+MEM_STATIC void FSE_0_5_X_initCState(FSE_0_5_X_CState_t* statePtr, const FSE_0_5_X_CTable* ct)
 {
     const void* ptr = ct;
     const U16* u16ptr = (const U16*) ptr;
@@ -239,11 +239,11 @@ MEM_STATIC void FSE_initCState(FSE_CState_t* statePtr, const FSE_CTable* ct)
     statePtr->stateLog = tableLog;
 }
 
-MEM_STATIC void FSE_initCState2(FSE_CState_t* statePtr, const FSE_CTable* ct, U32 symbol)
+MEM_STATIC void FSE_0_5_X_initCState2(FSE_0_5_X_CState_t* statePtr, const FSE_0_5_X_CTable* ct, U32 symbol)
 {
-    FSE_initCState(statePtr, ct);
+    FSE_0_5_X_initCState(statePtr, ct);
     {
-        const FSE_symbolCompressionTransform symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
+        const FSE_0_5_X_symbolCompressionTransform symbolTT = ((const FSE_0_5_X_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
         const U16* stateTable = (const U16*)(statePtr->stateTable);
         U32 nbBitsOut  = (U32)((symbolTT.deltaNbBits + (1<<15)) >> 16);
         statePtr->value = (nbBitsOut << 16) - symbolTT.deltaNbBits;
@@ -252,16 +252,16 @@ MEM_STATIC void FSE_initCState2(FSE_CState_t* statePtr, const FSE_CTable* ct, U3
     }
 }
 
-MEM_STATIC void FSE_encodeSymbol(BIT_CStream_t* bitC, FSE_CState_t* statePtr, U32 symbol)
+MEM_STATIC void FSE_0_5_X_encodeSymbol(BIT_CStream_t* bitC, FSE_0_5_X_CState_t* statePtr, U32 symbol)
 {
-    const FSE_symbolCompressionTransform symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
+    const FSE_0_5_X_symbolCompressionTransform symbolTT = ((const FSE_0_5_X_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
     const U16* const stateTable = (const U16*)(statePtr->stateTable);
     U32 nbBitsOut  = (U32)((statePtr->value + symbolTT.deltaNbBits) >> 16);
     BIT_addBits(bitC, statePtr->value, nbBitsOut);
     statePtr->value = stateTable[ (statePtr->value >> nbBitsOut) + symbolTT.deltaFindState];
 }
 
-MEM_STATIC void FSE_flushCState(BIT_CStream_t* bitC, const FSE_CState_t* statePtr)
+MEM_STATIC void FSE_0_5_X_flushCState(BIT_CStream_t* bitC, const FSE_0_5_X_CState_t* statePtr)
 {
     BIT_addBits(bitC, statePtr->value, statePtr->stateLog);
     BIT_flushBits(bitC);
@@ -272,38 +272,38 @@ MEM_STATIC void FSE_flushCState(BIT_CStream_t* bitC, const FSE_CState_t* statePt
 typedef struct {
     U16 tableLog;
     U16 fastMode;
-} FSE_DTableHeader;   /* sizeof U32 */
+} FSE_0_5_X_DTableHeader;   /* sizeof U32 */
 
 typedef struct
 {
     unsigned short newState;
     unsigned char  symbol;
     unsigned char  nbBits;
-} FSE_decode_t;   /* size == U32 */
+} FSE_0_5_X_decode_t;   /* size == U32 */
 
-MEM_STATIC void FSE_initDState(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD, const FSE_DTable* dt)
+MEM_STATIC void FSE_0_5_X_initDState(FSE_0_5_X_DState_t* DStatePtr, BIT_DStream_t* bitD, const FSE_0_5_X_DTable* dt)
 {
     const void* ptr = dt;
-    const FSE_DTableHeader* const DTableH = (const FSE_DTableHeader*)ptr;
+    const FSE_0_5_X_DTableHeader* const DTableH = (const FSE_0_5_X_DTableHeader*)ptr;
     DStatePtr->state = BIT_readBits(bitD, DTableH->tableLog);
     BIT_reloadDStream(bitD);
     DStatePtr->table = dt + 1;
 }
 
-MEM_STATIC size_t FSE_getStateValue(FSE_DState_t* DStatePtr)
+MEM_STATIC size_t FSE_0_5_X_getStateValue(FSE_0_5_X_DState_t* DStatePtr)
 {
     return DStatePtr->state;
 }
 
-MEM_STATIC BYTE FSE_peakSymbol(FSE_DState_t* DStatePtr)
+MEM_STATIC BYTE FSE_0_5_X_peakSymbol(FSE_0_5_X_DState_t* DStatePtr)
 {
-    const FSE_decode_t DInfo = ((const FSE_decode_t*)(DStatePtr->table))[DStatePtr->state];
+    const FSE_0_5_X_decode_t DInfo = ((const FSE_0_5_X_decode_t*)(DStatePtr->table))[DStatePtr->state];
     return DInfo.symbol;
 }
 
-MEM_STATIC BYTE FSE_decodeSymbol(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD)
+MEM_STATIC BYTE FSE_0_5_X_decodeSymbol(FSE_0_5_X_DState_t* DStatePtr, BIT_DStream_t* bitD)
 {
-    const FSE_decode_t DInfo = ((const FSE_decode_t*)(DStatePtr->table))[DStatePtr->state];
+    const FSE_0_5_X_decode_t DInfo = ((const FSE_0_5_X_decode_t*)(DStatePtr->table))[DStatePtr->state];
     const U32  nbBits = DInfo.nbBits;
     BYTE symbol = DInfo.symbol;
     size_t lowBits = BIT_readBits(bitD, nbBits);
@@ -312,9 +312,9 @@ MEM_STATIC BYTE FSE_decodeSymbol(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD)
     return symbol;
 }
 
-MEM_STATIC BYTE FSE_decodeSymbolFast(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD)
+MEM_STATIC BYTE FSE_0_5_X_decodeSymbolFast(FSE_0_5_X_DState_t* DStatePtr, BIT_DStream_t* bitD)
 {
-    const FSE_decode_t DInfo = ((const FSE_decode_t*)(DStatePtr->table))[DStatePtr->state];
+    const FSE_0_5_X_decode_t DInfo = ((const FSE_0_5_X_decode_t*)(DStatePtr->table))[DStatePtr->state];
     const U32 nbBits = DInfo.nbBits;
     BYTE symbol = DInfo.symbol;
     size_t lowBits = BIT_readBitsFast(bitD, nbBits);
@@ -323,7 +323,7 @@ MEM_STATIC BYTE FSE_decodeSymbolFast(FSE_DState_t* DStatePtr, BIT_DStream_t* bit
     return symbol;
 }
 
-MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
+MEM_STATIC unsigned FSE_0_5_X_endOfDState(const FSE_0_5_X_DState_t* DStatePtr)
 {
     return DStatePtr->state == 0;
 }
@@ -333,4 +333,4 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 }
 #endif
 
-#endif  /* FSE_STATIC_H */
+#endif  /* FSE_0_5_X_STATIC_H */
