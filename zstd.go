@@ -1,6 +1,7 @@
 package zstd
 
 /*
+#cgo CFLAGS: -DZSTD_LEGACY_SUPPORT=5
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 */
