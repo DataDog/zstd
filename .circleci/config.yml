@@ -66,3 +66,4 @@ workflows:
       - "golang-latest"
       - "golang-efence"
       - "golang-i386"
+      - "golang-zstd-legacy-support"
