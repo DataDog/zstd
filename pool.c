@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -348,3 +349,4 @@ size_t POOL_sizeof(POOL_ctx* ctx) {
 }
 
 #endif  /* ZSTD_MULTITHREAD */
+#endif /* USE_LIBZSTD */

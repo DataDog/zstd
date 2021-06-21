@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Facebook, Inc.
  * All rights reserved.
@@ -109,3 +110,4 @@
 
 #endif /* ZSTD_DEPS_STDINT */
 #endif /* ZSTD_DEPS_NEED_STDINT */
+#endif /* USE_LIBZSTD */

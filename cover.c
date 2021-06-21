@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -1243,3 +1244,4 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
     return dictSize;
   }
 }
+#endif /* USE_LIBZSTD */

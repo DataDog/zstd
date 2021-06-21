@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -286,3 +287,4 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #endif
 
 #endif /* ZSTD_COMPILER_H */
+#endif /* USE_LIBZSTD */

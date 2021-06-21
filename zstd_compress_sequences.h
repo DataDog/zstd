@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -52,3 +53,4 @@ size_t ZSTD_fseBitCost(
 size_t ZSTD_crossEntropyCost(short const* norm, unsigned accuracyLog,
                              unsigned const* count, unsigned const max);
 #endif /* ZSTD_COMPRESS_SEQUENCES_H */
+#endif /* USE_LIBZSTD */

@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /* ******************************************************************
  * hist : Histogram functions
  * part of Finite State Entropy project
@@ -73,3 +74,4 @@ size_t HIST_countFast_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
  */
 unsigned HIST_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
                            const void* src, size_t srcSize);
+#endif /* USE_LIBZSTD */

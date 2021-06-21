@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -494,3 +495,4 @@ size_t ZSTD_compressBlock_fast_extDict(
         return ZSTD_compressBlock_fast_extDict_generic(ms, seqStore, rep, src, srcSize, 7);
     }
 }
+#endif /* USE_LIBZSTD */

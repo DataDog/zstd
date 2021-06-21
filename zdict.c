@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -1132,3 +1133,4 @@ size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize
                                                      samplesBuffer, samplesSizes, nbSamples,
                                                      params);
 }
+#endif /* USE_LIBZSTD */

@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /* ******************************************************************
  * huff0 huffman codec,
  * part of Finite State Entropy library
@@ -359,3 +360,4 @@ size_t HUF_readDTableX1_wksp_bmi2(HUF_DTable* DTable, const void* src, size_t sr
 #if defined (__cplusplus)
 }
 #endif
+#endif /* USE_LIBZSTD */

@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -242,3 +243,4 @@ unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict)
     if (ddict==NULL) return 0;
     return ZSTD_getDictID_fromDict(ddict->dictContent, ddict->dictSize);
 }
+#endif /* USE_LIBZSTD */

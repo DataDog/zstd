@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -476,3 +477,4 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
 #endif
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */
+#endif /* USE_LIBZSTD */

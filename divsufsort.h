@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * divsufsort.h for libdivsufsort-lite
  * Copyright (c) 2003-2008 Yuta Mori All Rights Reserved.
@@ -65,3 +66,4 @@ divbwt(const unsigned char *T, unsigned char *U, int *A, int n, unsigned char * 
 #endif /* __cplusplus */
 
 #endif /* _DIVSUFSORT_H */
+#endif /* USE_LIBZSTD */

@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -140,3 +141,4 @@ size_t ZBUFFv04_recommendedDOutSize(void);
 #endif
 
 #endif /* ZSTD_V04_H_91868324769238 */
+#endif /* USE_LIBZSTD */

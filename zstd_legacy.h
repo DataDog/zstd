@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -413,3 +414,4 @@ MEM_STATIC size_t ZSTD_decompressLegacyStream(void* legacyContext, U32 version,
 #endif
 
 #endif   /* ZSTD_LEGACY_H */
+#endif /* USE_LIBZSTD */

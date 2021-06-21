@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /* ******************************************************************
  * debug
  * Part of FSE library
@@ -105,3 +106,4 @@ extern int g_debuglevel; /* the variable is only declared,
 #endif
 
 #endif /* DEBUG_H_12987983217 */
+#endif /* USE_LIBZSTD */

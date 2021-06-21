@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /**
  * Copyright (c) 2016 Tino Reichardt
  * All rights reserved.
@@ -153,3 +154,4 @@ typedef int ZSTD_pthread_cond_t;
 #endif
 
 #endif /* THREADING_H_938743 */
+#endif /* USE_LIBZSTD */

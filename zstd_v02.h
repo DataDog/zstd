@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -91,3 +92,4 @@ size_t ZSTDv02_decompressContinue(ZSTDv02_Dctx* dctx, void* dst, size_t maxDstSi
 #endif
 
 #endif /* ZSTD_V02_H_4174539423 */
+#endif /* USE_LIBZSTD */

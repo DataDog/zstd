@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -82,3 +83,4 @@ int POOL_tryAdd(POOL_ctx* ctx, POOL_function function, void* opaque);
 #endif
 
 #endif
+#endif /* USE_LIBZSTD */

@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /**
  * Copyright (c) 2016 Tino Reichardt
  * All rights reserved.
@@ -120,3 +121,4 @@ int ZSTD_pthread_cond_destroy(ZSTD_pthread_cond_t* cond)
 }
 
 #endif
+#endif /* USE_LIBZSTD */

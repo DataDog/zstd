@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -2389,3 +2390,7 @@ ZSTDLIB_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* blockStart,
 #if defined (__cplusplus)
 }
 #endif
+#else /* USE_LIBZSTD */
+#undef ZSTD_STATIC_LINKING_ONLY
+#include_next <zstd.h>
+#endif /* USE_LIBZSTD */

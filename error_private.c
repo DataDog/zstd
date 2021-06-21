@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -54,3 +55,4 @@ const char* ERR_getErrorString(ERR_enum code)
     }
 #endif
 }
+#endif /* USE_LIBZSTD */
