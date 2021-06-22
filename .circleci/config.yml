@@ -31,6 +31,18 @@ jobs:
       - run: 'go build'
       - run: 'PAYLOAD=`pwd`/mr go test -v'
       - run: 'PAYLOAD=`pwd`/mr go test -bench .'
+  "golang-libzstd":
+    docker:
+      - image: circleci/golang:latest
+    steps:
+      - checkout
+      - run: 'sudo apt-get update && sudo apt-get install libzstd-dev'
+      - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
+      - run: 'unzip mr.zip'
+      - run: 'go build -tags libzstd'
+      - run: 'go test -tags libzstd -c && ldd zstd.test | grep libzstd'
+      - run: 'PAYLOAD=`pwd`/mr go test -tags libzstd -v'
+      - run: 'PAYLOAD=`pwd`/mr go test -tags libzstd -bench .'
   "golang-efence":
     resource_class: xlarge
     docker:
@@ -64,6 +76,7 @@ workflows:
       - "golang-1.14"
       - "golang-1.15"
       - "golang-latest"
+      - "golang-libzstd"
       - "golang-efence"
       - "golang-i386"
       - "golang-zstd-legacy-support"

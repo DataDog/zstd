@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -1538,3 +1539,4 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
     dctx->previousDstEnd = (char*)dst + dSize;
     return dSize;
 }
+#endif /* USE_LIBZSTD */

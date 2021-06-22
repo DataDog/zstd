@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -1928,3 +1929,4 @@ size_t ZSTD_decompressStream_simpleArgs (
     *srcPos = input.pos;
     return cErr;
 }
+#endif /* USE_LIBZSTD */

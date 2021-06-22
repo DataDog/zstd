@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -847,3 +848,4 @@ size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
             zc->bmi2, lastBlock,
             zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */);
 }
+#endif /* USE_LIBZSTD */

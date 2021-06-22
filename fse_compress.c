@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /* ******************************************************************
  * FSE : Finite State Entropy encoder
  * Copyright (c) 2013-2020, Yann Collet, Facebook, Inc.
@@ -703,3 +704,4 @@ size_t FSE_compress (void* dst, size_t dstCapacity, const void* src, size_t srcS
 #endif
 
 #endif   /* FSE_COMMONDEFS_ONLY */
+#endif /* USE_LIBZSTD */

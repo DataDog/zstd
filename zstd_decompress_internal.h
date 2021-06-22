@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -188,3 +189,4 @@ void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst);
 
 
 #endif /* ZSTD_DECOMPRESS_INTERNAL_H */
+#endif /* USE_LIBZSTD */

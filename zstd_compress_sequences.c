@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -431,3 +432,4 @@ size_t ZSTD_encodeSequences(
                                         CTable_LitLength, llCodeTable,
                                         sequences, nbSeq, longOffsets);
 }
+#endif /* USE_LIBZSTD */

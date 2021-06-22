@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -24,3 +25,4 @@ unsigned ZBUFF_isError(size_t errorCode) { return ERR_isError(errorCode); }
 /*! ZBUFF_getErrorName() :
 *   provides error code string from function result (useful for debugging) */
 const char* ZBUFF_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
+#endif /* USE_LIBZSTD */

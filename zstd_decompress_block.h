@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -60,3 +61,4 @@ void ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
 
 
 #endif /* ZSTD_DEC_BLOCK_H */
+#endif /* USE_LIBZSTD */

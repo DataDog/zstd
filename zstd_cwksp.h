@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -559,3 +560,4 @@ MEM_STATIC void ZSTD_cwksp_bump_oversized_duration(
 #endif
 
 #endif /* ZSTD_CWKSP_H */
+#endif /* USE_LIBZSTD */

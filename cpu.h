@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2018-2020, Facebook, Inc.
  * All rights reserved.
@@ -211,3 +212,4 @@ MEM_STATIC ZSTD_cpuid_t ZSTD_cpuid(void) {
 #undef X
 
 #endif /* ZSTD_COMMON_CPU_H */
+#endif /* USE_LIBZSTD */

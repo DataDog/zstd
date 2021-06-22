@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2018-2020, Facebook, Inc.
  * All rights reserved.
@@ -756,3 +757,4 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
     }
 
 }
+#endif /* USE_LIBZSTD */

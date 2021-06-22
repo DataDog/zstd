@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /* ******************************************************************
  * debug
  * Part of FSE library
@@ -22,3 +23,4 @@
 #include "debug.h"
 
 int g_debuglevel = DEBUGLEVEL;
+#endif /* USE_LIBZSTD */

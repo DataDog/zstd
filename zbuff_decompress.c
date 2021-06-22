@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -73,3 +74,4 @@ size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbd,
 ***************************************/
 size_t ZBUFF_recommendedDInSize(void)  { return ZSTD_DStreamInSize(); }
 size_t ZBUFF_recommendedDOutSize(void) { return ZSTD_DStreamOutSize(); }
+#endif /* USE_LIBZSTD */

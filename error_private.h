@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -78,3 +79,4 @@ ERR_STATIC const char* ERR_getErrorName(size_t code)
 #endif
 
 #endif /* ERROR_H_MODULE */
+#endif /* USE_LIBZSTD */

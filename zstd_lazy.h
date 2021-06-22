@@ -1,3 +1,4 @@
+#ifndef USE_LIBZSTD
 /*
  * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -85,3 +86,4 @@ size_t ZSTD_compressBlock_btlazy2_extDict(
 #endif
 
 #endif /* ZSTD_LAZY_H */
+#endif /* USE_LIBZSTD */
