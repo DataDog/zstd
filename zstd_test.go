@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -256,6 +258,29 @@ func TestRealPayload(t *testing.T) {
 	}
 	if string(raw) != string(rein) {
 		t.Fatalf("compressed/decompressed payloads are not the same (lengths: %v & %v)", len(raw), len(rein))
+	}
+}
+
+func TestLegacy(t *testing.T) {
+	// payloads compressed with zstd v0.5
+	// needs ZSTD_LEGACY_SUPPORT=5 or less
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"%\xb5/\xfd\x00@\x00\x1bcompressed with legacy zstd\xc0\x00\x00", "compressed with legacy zstd"},
+		{"%\xb5/\xfd\x00\x00\x00A\x11\x007\x14\xb0\xb5\x01@\x1aR\xb6iI7[FH\x022u\xe0O-\x18\xe3G\x9e2\xab\xd9\xea\xca7؊\xee\x884\xbf\xe7\xdc\xe4@\xe1-\x9e\xac\xf0\xf2\x86\x0f\xf1r\xbb7\b\x81Z\x01\x00\x01\x00\xdf`\xfe\xc0\x00\x00", "compressed with legacy zstd"},
+	}
+	for i, testCase := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			out, err := Decompress(nil, []byte(testCase.input))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(out), testCase.expected) {
+				t.Errorf("expected to find %#v; output=%#v", testCase.expected, string(out))
+			}
+		})
 	}
 }
 
