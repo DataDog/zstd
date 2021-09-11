@@ -150,9 +150,8 @@
 }
 
 /* vectorization
- * older GCC (pre gcc-4.3 picked as the cutoff) uses a different syntax,
- * and some compilers, like Intel ICC and MCST LCC, do not support it at all. */
-#if !defined(__INTEL_COMPILER) && !defined(__clang__) && defined(__GNUC__) && !defined(__LCC__)
+ * older GCC (pre gcc-4.3 picked as the cutoff) uses a different syntax */
+#if !defined(__INTEL_COMPILER) && !defined(__clang__) && defined(__GNUC__)
 #  if (__GNUC__ == 4 && __GNUC_MINOR__ > 3) || (__GNUC__ >= 5)
 #    define DONT_VECTORIZE __attribute__((optimize("no-tree-vectorize")))
 #  else
@@ -197,22 +196,6 @@
 #ifndef STATIC_BMI2
     #define STATIC_BMI2 0
 #endif
-
-/* compile time determination of SIMD support */
-#if !defined(ZSTD_NO_INTRINSICS)
-#  if defined(__SSE2__) || defined(_M_AMD64) || (defined (_M_IX86) && defined(_M_IX86_FP) && (_M_IX86_FP >= 2))
-#    define ZSTD_ARCH_X86_SSE2
-#  endif
-#  if defined(__ARM_NEON) || defined(_M_ARM64)
-#    define ZSTD_ARCH_ARM_NEON
-#  endif
-#
-#  if defined(ZSTD_ARCH_X86_SSE2)
-#    include <emmintrin.h>
-#  elif defined(ZSTD_ARCH_ARM_NEON)
-#    include <arm_neon.h>
-#  endif
-#endif  
 
 /* compat. with non-clang compilers */
 #ifndef __has_builtin

@@ -1157,6 +1157,9 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 #define ZSTD_SRCSIZEHINT_MIN        0
 #define ZSTD_SRCSIZEHINT_MAX        INT_MAX
 
+/* internal */
+#define ZSTD_HASHLOG3_MAX           17
+
 
 /* ---  Advanced types  --- */
 
@@ -1437,26 +1440,6 @@ ZSTDLIB_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size
  */
 ZSTDLIB_API size_t ZSTD_writeSkippableFrame(void* dst, size_t dstCapacity,
                                             const void* src, size_t srcSize, unsigned magicVariant);
-
-/*! ZSTD_readSkippableFrame() :
- * Retrieves a zstd skippable frame containing data given by src, and writes it to dst buffer.
- *
- * The parameter magicVariant will receive the magicVariant that was supplied when the frame was written,
- * i.e. magicNumber - ZSTD_MAGIC_SKIPPABLE_START.  This can be NULL if the caller is not interested
- * in the magicVariant.
- *
- * Returns an error if destination buffer is not large enough, or if the frame is not skippable.
- *
- * @return : number of bytes written or a ZSTD error.
- */
-ZSTDLIB_API size_t ZSTD_readSkippableFrame(void* dst, size_t dstCapacity, unsigned* magicVariant,
-                                            const void* src, size_t srcSize);
-
-/*! ZSTD_isSkippableFrame() :
- *  Tells if the content of `buffer` starts with a valid Frame Identifier for a skippable frame.
- */
-ZSTDLIB_API unsigned ZSTD_isSkippableFrame(const void* buffer, size_t size);
-
 
 
 /***************************************
@@ -2222,7 +2205,7 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
  * This function is DEPRECATED, and equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
  *     ZSTD_CCtx_refCDict(zcs, cdict);
- *
+ * 
  * note : cdict will just be referenced, and must outlive compression session
  * This prototype will generate compilation warnings.
  */

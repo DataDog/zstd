@@ -63,7 +63,7 @@ typedef struct {
 } ZSTD_localDict;
 
 typedef struct {
-    HUF_CElt CTable[HUF_CTABLE_SIZE_ST(255)];
+    HUF_CElt CTable[HUF_CTABLE_SIZE_U32(255)];
     HUF_repeat repeatMode;
 } ZSTD_hufCTables_t;
 
@@ -198,8 +198,6 @@ typedef struct {
                                 * and for ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY.
                                 */
 } ZSTD_window_t;
-
-#define ZSTD_WINDOW_START_INDEX 2
 
 typedef struct ZSTD_matchState_t ZSTD_matchState_t;
 
@@ -886,9 +884,9 @@ MEM_STATIC void ZSTD_window_clear(ZSTD_window_t* window)
 
 MEM_STATIC U32 ZSTD_window_isEmpty(ZSTD_window_t const window)
 {
-    return window.dictLimit == ZSTD_WINDOW_START_INDEX &&
-           window.lowLimit == ZSTD_WINDOW_START_INDEX &&
-           (window.nextSrc - window.base) == ZSTD_WINDOW_START_INDEX;
+    return window.dictLimit == 1 &&
+           window.lowLimit == 1 &&
+           (window.nextSrc - window.base) == 1;
 }
 
 /**
@@ -1151,12 +1149,11 @@ ZSTD_checkDictValidity(const ZSTD_window_t* window,
 
 MEM_STATIC void ZSTD_window_init(ZSTD_window_t* window) {
     ZSTD_memset(window, 0, sizeof(*window));
-    window->base = (BYTE const*)" ";
-    window->dictBase = (BYTE const*)" ";
-    ZSTD_STATIC_ASSERT(ZSTD_DUBT_UNSORTED_MARK < ZSTD_WINDOW_START_INDEX); /* Start above ZSTD_DUBT_UNSORTED_MARK */
-    window->dictLimit = ZSTD_WINDOW_START_INDEX;    /* start from >0, so that 1st position is valid */
-    window->lowLimit = ZSTD_WINDOW_START_INDEX;     /* it ensures first and later CCtx usages compress the same */
-    window->nextSrc = window->base + ZSTD_WINDOW_START_INDEX;   /* see issue #1241 */
+    window->base = (BYTE const*)"";
+    window->dictBase = (BYTE const*)"";
+    window->dictLimit = 1;    /* start from 1, so that 1st position is valid */
+    window->lowLimit = 1;     /* it ensures first and later CCtx usages compress the same */
+    window->nextSrc = window->base + 1;   /* see issue #1241 */
     window->nbOverflowCorrections = 0;
 }
 
