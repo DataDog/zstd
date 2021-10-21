@@ -42,6 +42,10 @@ func cCompressBound(srcSize int) int {
 	return int(C.ZSTD_compressBound(C.size_t(srcSize)))
 }
 
+func ZstdVersion() string {
+	return C.GoString(C.ZSTD_versionString())
+}
+
 // Compress src into dst.  If you have a buffer to use, you can pass it to
 // prevent allocation.  If it is too small, or if nil is passed, a new buffer
 // will be allocated and returned.
