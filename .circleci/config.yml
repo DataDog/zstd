@@ -6,6 +6,8 @@ jobs:
       - image: circleci/golang:1.14
     steps:
       - checkout
+      - run: 'sudo apt update'
+      - run: 'sudo apt install libzstd-dev'
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
       - run: 'unzip mr.zip'
       - run: 'go build'
@@ -16,6 +18,8 @@ jobs:
       - image: circleci/golang:1.15
     steps:
       - checkout
+      - run: 'sudo apt update'
+      - run: 'sudo apt install libzstd-dev'
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
       - run: 'unzip mr.zip'
       - run: 'go build'
@@ -26,6 +30,8 @@ jobs:
       - image: circleci/golang:latest
     steps:
       - checkout
+      - run: 'sudo apt update'
+      - run: 'sudo apt install libzstd-dev'
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
       - run: 'unzip mr.zip'
       - run: 'go build'
@@ -37,6 +43,8 @@ jobs:
       - image: circleci/golang:latest
     steps:
       - checkout
+      - run: 'sudo apt update'
+      - run: 'sudo apt install libzstd-dev'
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
       - run: 'unzip mr.zip'
       - run: 'go build'
@@ -46,13 +54,15 @@ jobs:
       - image: circleci/golang:latest
     steps:
       - checkout
+      - run: 'sudo apt update'
+      - run: 'sudo apt install libzstd-dev'
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
       - run: 'unzip mr.zip'
       - run: 'CGO_CFLAGS="-DZSTD_LEGACY_SUPPORT=1" go build'
       - run: 'PAYLOAD=`pwd`/mr CGO_CFLAGS="-DZSTD_LEGACY_SUPPORT=1" go test -v'
   "golang-i386":
     docker:
-      - image: 32bit/ubuntu:16.04
+      - image: 32bit/ubuntu:20.04
     steps:
       - checkout
       - run: 'linux32 --32bit i386 ./travis_test_32.sh'
