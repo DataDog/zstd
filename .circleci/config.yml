@@ -31,6 +31,18 @@ jobs:
       - run: 'go build'
       - run: 'PAYLOAD=`pwd`/mr go test -v'
       - run: 'PAYLOAD=`pwd`/mr go test -bench .'
+  "golang-latest-external-libzstd":
+    docker:
+      - image: circleci/golang:latest
+    steps:
+      - checkout
+      - run: 'sudo apt update'
+      - run: 'sudo apt install libzstd-dev'
+      - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
+      - run: 'unzip mr.zip'
+      - run: 'go build -tags external_libzstd'
+      - run: 'PAYLOAD=`pwd`/mr go test -tags external_libzstd -v'
+      - run: 'PAYLOAD=`pwd`/mr go test -tags external_libzstd -bench .'
   "golang-efence":
     resource_class: xlarge
     docker:
@@ -41,6 +53,18 @@ jobs:
       - run: 'unzip mr.zip'
       - run: 'go build'
       - run: 'PAYLOAD=`pwd`/mr GODEBUG=efence=1 go test -v'
+  "golang-efence-external-libzstd":
+    resource_class: xlarge
+    docker:
+      - image: circleci/golang:latest
+    steps:
+      - checkout
+      - run: 'sudo apt update'
+      - run: 'sudo apt install libzstd-dev'
+      - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
+      - run: 'unzip mr.zip'
+      - run: 'go build -tags external_libzstd'
+      - run: 'PAYLOAD=`pwd`/mr GODEBUG=efence=1 go test -tags external_libzstd -v'
   "golang-zstd-legacy-support":
     docker:
       - image: circleci/golang:latest
@@ -64,6 +88,8 @@ workflows:
       - "golang-1.14"
       - "golang-1.15"
       - "golang-latest"
+      - "golang-latest-external-libzstd"
       - "golang-efence"
+      - "golang-efence-external-libzstd"
       - "golang-i386"
       - "golang-zstd-legacy-support"
