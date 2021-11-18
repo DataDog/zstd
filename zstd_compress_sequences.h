@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -52,3 +53,5 @@ size_t ZSTD_fseBitCost(
 size_t ZSTD_crossEntropyCost(short const* norm, unsigned accuracyLog,
                              unsigned const* count, unsigned const max);
 #endif /* ZSTD_COMPRESS_SEQUENCES_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

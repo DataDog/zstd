@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  *  xxHash - Fast Hash algorithm
  *  Copyright (c) Yann Collet, Facebook, Inc.
@@ -822,3 +823,5 @@ XXH_PUBLIC_API XXH64_hash_t XXH64_hashFromCanonical(const XXH64_canonical_t* src
 {
     return XXH_readBE64(src);
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -348,3 +349,5 @@ size_t POOL_sizeof(POOL_ctx* ctx) {
 }
 
 #endif  /* ZSTD_MULTITHREAD */
+
+#endif /* USE_EXTERNAL_ZSTD */

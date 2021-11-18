@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -160,3 +161,5 @@ size_t ZBUFFv05_recommendedDOutSize(void);
 #endif
 
 #endif  /* ZSTDv0505_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

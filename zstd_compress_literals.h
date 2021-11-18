@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -27,3 +28,5 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                         const int bmi2);
 
 #endif /* ZSTD_COMPRESS_LITERALS_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

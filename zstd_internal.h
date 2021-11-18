@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -488,3 +489,5 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
 #endif
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */
+
+#endif /* USE_EXTERNAL_ZSTD */

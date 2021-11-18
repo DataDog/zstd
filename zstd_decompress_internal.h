@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -203,3 +204,5 @@ void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst, size_t dstSize);
 
 
 #endif /* ZSTD_DECOMPRESS_INTERNAL_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

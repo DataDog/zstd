@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Facebook, Inc.
  * All rights reserved.
@@ -152,3 +153,5 @@ ZSTD_WEAK_ATTR void ZSTD_trace_decompress_end(
 #endif
 
 #endif /* ZSTD_TRACE_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -2182,3 +2183,5 @@ size_t ZSTD_compressBlock_lazy2_extDict_row(
 {
     return ZSTD_compressBlock_lazy_extDict_generic(ms, seqStore, rep, src, srcSize, search_rowHash, 2);
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

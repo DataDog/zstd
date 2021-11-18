@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /* ******************************************************************
  * huff0 huffman decoder,
  * part of Finite State Entropy library
@@ -1349,3 +1350,5 @@ size_t HUF_decompress1X_DCtx(HUF_DTable* dctx, void* dst, size_t dstSize,
                                       workSpace, sizeof(workSpace));
 }
 #endif
+
+#endif /* USE_EXTERNAL_ZSTD */

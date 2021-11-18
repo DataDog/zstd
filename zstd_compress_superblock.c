@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -570,3 +571,5 @@ size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
             zc->bmi2, lastBlock,
             zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */);
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

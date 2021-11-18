@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /* ******************************************************************
  * Huffman encoder, part of New Generation Entropy library
  * Copyright (c) Yann Collet, Facebook, Inc.
@@ -935,3 +936,5 @@ size_t HUF_compress (void* dst, size_t maxDstSize, const void* src, size_t srcSi
     return HUF_compress2(dst, maxDstSize, src, srcSize, 255, HUF_TABLELOG_DEFAULT);
 }
 #endif
+
+#endif /* USE_EXTERNAL_ZSTD */

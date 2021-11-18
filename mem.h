@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -422,3 +423,5 @@ MEM_STATIC void MEM_check(void) { DEBUG_STATIC_ASSERT((sizeof(size_t)==4) || (si
 #endif
 
 #endif /* MEM_H_MODULE */
+
+#endif /* USE_EXTERNAL_ZSTD */

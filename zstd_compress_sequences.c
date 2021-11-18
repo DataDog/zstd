@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -439,3 +440,5 @@ size_t ZSTD_encodeSequences(
                                         CTable_LitLength, llCodeTable,
                                         sequences, nbSeq, longOffsets);
 }
+
+#endif /* USE_EXTERNAL_ZSTD */
