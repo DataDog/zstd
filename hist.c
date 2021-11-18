@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /* ******************************************************************
  * hist : Histogram functions
  * part of Finite State Entropy project
@@ -179,3 +180,5 @@ size_t HIST_count(unsigned* count, unsigned* maxSymbolValuePtr,
     return HIST_count_wksp(count, maxSymbolValuePtr, src, srcSize, tmpCounters, sizeof(tmpCounters));
 }
 #endif
+
+#endif /* USE_EXTERNAL_ZSTD */

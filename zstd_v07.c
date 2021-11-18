@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -4543,3 +4544,5 @@ size_t ZBUFFv07_decompressContinue(ZBUFFv07_DCtx* zbd,
 ***************************************/
 size_t ZBUFFv07_recommendedDInSize(void)  { return ZSTDv07_BLOCKSIZE_ABSOLUTEMAX + ZSTDv07_blockHeaderSize /* block header size*/ ; }
 size_t ZBUFFv07_recommendedDOutSize(void) { return ZSTDv07_BLOCKSIZE_ABSOLUTEMAX; }
+
+#endif /* USE_EXTERNAL_ZSTD */

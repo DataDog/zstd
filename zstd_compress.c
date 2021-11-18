@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -6391,3 +6392,5 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSizeH
     if (srcSizeHint == 0) srcSizeHint = ZSTD_CONTENTSIZE_UNKNOWN;
     return ZSTD_getParams_internal(compressionLevel, srcSizeHint, dictSize, ZSTD_cpm_unknown);
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

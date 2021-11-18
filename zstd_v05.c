@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -4052,3 +4053,5 @@ const char* ZBUFFv05_getErrorName(size_t errorCode) { return ERR_getErrorName(er
 
 size_t ZBUFFv05_recommendedDInSize(void)  { return BLOCKSIZE + ZBUFFv05_blockHeaderSize /* block header size*/ ; }
 size_t ZBUFFv05_recommendedDOutSize(void) { return BLOCKSIZE; }
+
+#endif /* USE_EXTERNAL_ZSTD */

@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -2165,3 +2166,5 @@ size_t ZSTD_decompressStream_simpleArgs (
     *srcPos = input.pos;
     return cErr;
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

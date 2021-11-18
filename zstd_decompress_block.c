@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -1546,3 +1547,5 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
     dctx->previousDstEnd = (char*)dst + dSize;
     return dSize;
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

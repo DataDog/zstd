@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -3649,3 +3650,5 @@ size_t ZBUFFv04_decompressContinue(ZBUFFv04_DCtx* dctx, void* dst, size_t* maxDs
 
 ZSTD_DCtx* ZSTDv04_createDCtx(void) { return ZSTD_createDCtx(); }
 size_t ZSTDv04_freeDCtx(ZSTD_DCtx* dctx) { return ZSTD_freeDCtx(dctx); }
+
+#endif /* USE_EXTERNAL_ZSTD */

@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -156,3 +157,5 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
     DEBUGLOG(5, "Compressed literals: %u -> %u", (U32)srcSize, (U32)(lhSize+cLitSize));
     return lhSize+cLitSize;
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

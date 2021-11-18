@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -108,3 +109,5 @@ ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx);
 #endif
 
 #endif   /* ZSTDMT_COMPRESS_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -1244,3 +1245,5 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
     return dictSize;
   }
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

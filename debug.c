@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /* ******************************************************************
  * debug
  * Part of FSE library
@@ -22,3 +23,5 @@
 #include "debug.h"
 
 int g_debuglevel = DEBUGLEVEL;
+
+#endif /* USE_EXTERNAL_ZSTD */

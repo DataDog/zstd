@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -78,3 +79,5 @@ ERR_STATIC const char* ERR_getErrorName(size_t code)
 #endif
 
 #endif /* ERROR_H_MODULE */
+
+#endif /* USE_EXTERNAL_ZSTD */

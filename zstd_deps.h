@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Facebook, Inc.
  * All rights reserved.
@@ -109,3 +110,5 @@
 
 #endif /* ZSTD_DEPS_STDINT */
 #endif /* ZSTD_DEPS_NEED_STDINT */
+
+#endif /* USE_EXTERNAL_ZSTD */

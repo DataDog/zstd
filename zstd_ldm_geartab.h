@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -101,3 +102,5 @@ static U64 ZSTD_ldm_gearTab[256] = {
 };
 
 #endif /* ZSTD_LDM_GEARTAB_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -660,3 +661,5 @@ MEM_STATIC void ZSTD_cwksp_bump_oversized_duration(
 #endif
 
 #endif /* ZSTD_CWKSP_H */
+
+#endif /* USE_EXTERNAL_ZSTD */
