@@ -8,6 +8,7 @@
  * in the COPYING file in the root directory of this source tree).
  * You may select, at your option, one of the above-listed licenses.
  */
+#error "This should not build"
 #if defined (__cplusplus)
 extern "C" {
 #endif
