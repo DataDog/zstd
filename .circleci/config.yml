@@ -1,9 +1,9 @@
 version: 2
 
 jobs:
-  "golang-1.14":
+  "golang-1.16":
     docker:
-      - image: circleci/golang:1.14
+      - image: circleci/golang:1.16
     steps:
       - checkout
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
@@ -11,9 +11,9 @@ jobs:
       - run: 'go build'
       - run: 'PAYLOAD=`pwd`/mr go test -v'
       - run: 'PAYLOAD=`pwd`/mr go test -bench .'
-  "golang-1.15":
+  "golang-1.17":
     docker:
-      - image: circleci/golang:1.15
+      - image: circleci/golang:1.17
     steps:
       - checkout
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
@@ -85,8 +85,8 @@ workflows:
   version: 2
   build:
     jobs:
-      - "golang-1.14"
-      - "golang-1.15"
+      - "golang-1.16"
+      - "golang-1.17"
       - "golang-latest"
       - "golang-latest-external-libzstd"
       - "golang-efence"
