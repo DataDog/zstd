@@ -2532,6 +2532,5 @@ ZSTDLIB_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* blockStart,
 }
 #endif
 #else /* USE_EXTERNAL_ZSTD */
-#undef ZSTD_STATIC_LINKING_ONLY
 #include_next <zstd.h>
 #endif /* USE_EXTERNAL_ZSTD */

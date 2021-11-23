@@ -16,7 +16,6 @@ HEADER=f"""#ifndef {FLAG}
 
 ZSTD_H_FOOTER=f"""
 #else /* {FLAG} */
-#undef ZSTD_STATIC_LINKING_ONLY
 #include_next <zstd.h>
 #endif /* {FLAG} */
 """
