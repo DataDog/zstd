@@ -1,7 +1,8 @@
+#ifndef USE_EXTERNAL_ZSTD
 /* ******************************************************************
  * bitstream
  * Part of FSE library
- * Copyright (c) 2013-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  *
  * You can contact the author at :
  * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
@@ -461,3 +462,5 @@ MEM_STATIC unsigned BIT_endOfDStream(const BIT_DStream_t* DStream)
 #endif
 
 #endif /* BITSTREAM_H_MODULE */
+
+#endif /* USE_EXTERNAL_ZSTD */

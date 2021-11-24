@@ -1,7 +1,6 @@
 package zstd
 
 /*
-#define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 
 typedef struct compressStream2_result_s {

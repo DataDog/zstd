@@ -1,5 +1,6 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -54,3 +55,5 @@ const char* ERR_getErrorString(ERR_enum code)
     }
 #endif
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

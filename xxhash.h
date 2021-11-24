@@ -1,7 +1,8 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * xxHash - Extremely Fast Hash algorithm
  * Header File
- * Copyright (c) 2012-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  *
  * You can contact the author at :
  * - xxHash source repository : https://github.com/Cyan4973/xxHash
@@ -283,3 +284,5 @@ XXH_PUBLIC_API XXH64_hash_t XXH64_hashFromCanonical(const XXH64_canonical_t* src
 #if defined (__cplusplus)
 }
 #endif
+
+#endif /* USE_EXTERNAL_ZSTD */
