@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -1132,3 +1133,5 @@ size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize
                                                      samplesBuffer, samplesSizes, nbSamples,
                                                      params);
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

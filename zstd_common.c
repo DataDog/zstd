@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -81,3 +82,5 @@ void ZSTD_customFree(void* ptr, ZSTD_customMem customMem)
             ZSTD_free(ptr);
     }
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

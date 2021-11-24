@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -91,3 +92,5 @@ size_t ZSTDv03_decompressContinue(ZSTDv03_Dctx* dctx, void* dst, size_t maxDstSi
 #endif
 
 #endif /* ZSTD_V03_H_298734209782 */
+
+#endif /* USE_EXTERNAL_ZSTD */

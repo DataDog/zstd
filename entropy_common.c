@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /* ******************************************************************
  * Common functions of New Generation Entropy library
  * Copyright (c) Yann Collet, Facebook, Inc.
@@ -360,3 +361,5 @@ size_t HUF_readStats_wksp(BYTE* huffWeight, size_t hwSize, U32* rankStats,
     (void)bmi2;
     return HUF_readStats_body_default(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, workSpace, wkspSize);
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

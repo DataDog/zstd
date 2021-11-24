@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -115,3 +116,5 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
 #endif
 
 #endif /* ZSTD_FAST_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

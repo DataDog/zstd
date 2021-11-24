@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -1365,3 +1366,5 @@ U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat);
 void ZSTD_CCtx_trace(ZSTD_CCtx* cctx, size_t extraCSize);
 
 #endif /* ZSTD_COMPRESS_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

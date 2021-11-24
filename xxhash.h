@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * xxHash - Extremely Fast Hash algorithm
  * Header File
@@ -283,3 +284,5 @@ XXH_PUBLIC_API XXH64_hash_t XXH64_hashFromCanonical(const XXH64_canonical_t* src
 #if defined (__cplusplus)
 }
 #endif
+
+#endif /* USE_EXTERNAL_ZSTD */

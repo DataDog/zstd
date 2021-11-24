@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /* ******************************************************************
  * FSE : Finite State Entropy codec
  * Public Prototypes declaration
@@ -714,3 +715,5 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 #if defined (__cplusplus)
 }
 #endif
+
+#endif /* USE_EXTERNAL_ZSTD */

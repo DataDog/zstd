@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -413,3 +414,5 @@ MEM_STATIC size_t ZSTD_decompressLegacyStream(void* legacyContext, U32 version,
 #endif
 
 #endif   /* ZSTD_LEGACY_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

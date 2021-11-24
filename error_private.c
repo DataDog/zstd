@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -54,3 +55,5 @@ const char* ERR_getErrorString(ERR_enum code)
     }
 #endif
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

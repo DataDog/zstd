@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -35,3 +36,5 @@ size_t ZSTD_compressBlock_fast_extDict(
 #endif
 
 #endif /* ZSTD_FAST_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

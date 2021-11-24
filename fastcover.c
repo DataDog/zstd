@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Facebook, Inc.
  * All rights reserved.
@@ -757,3 +758,5 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
     }
 
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

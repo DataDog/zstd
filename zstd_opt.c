@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -1343,3 +1344,5 @@ size_t ZSTD_compressBlock_btultra_extDict(
 /* note : no btultra2 variant for extDict nor dictMatchState,
  * because btultra2 is not meant to work with dictionaries
  * and is only specific for the first block (no prefix) */
+
+#endif /* USE_EXTERNAL_ZSTD */

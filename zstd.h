@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -2530,3 +2531,6 @@ ZSTDLIB_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* blockStart,
 #if defined (__cplusplus)
 }
 #endif
+#else /* USE_EXTERNAL_ZSTD */
+#include_next <zstd.h>
+#endif /* USE_EXTERNAL_ZSTD */

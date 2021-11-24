@@ -1,3 +1,4 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -30,3 +31,5 @@ size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
                                unsigned lastBlock);
 
 #endif /* ZSTD_COMPRESS_ADVANCED_H */
+
+#endif /* USE_EXTERNAL_ZSTD */
