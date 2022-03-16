@@ -109,4 +109,3 @@ workflows:
       - "golang-efence"
       - "golang-efence-external-libzstd"
       - "golang-i386"
-      - "golang-zstd-legacy-support"
