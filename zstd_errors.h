@@ -1,5 +1,6 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -93,3 +94,5 @@ ZSTDERRORLIB_API const char* ZSTD_getErrorString(ZSTD_ErrorCode code);   /**< Sa
 #endif
 
 #endif /* ZSTD_ERRORS_H_398273423 */
+
+#endif /* USE_EXTERNAL_ZSTD */

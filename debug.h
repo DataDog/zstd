@@ -1,7 +1,8 @@
+#ifndef USE_EXTERNAL_ZSTD
 /* ******************************************************************
  * debug
  * Part of FSE library
- * Copyright (c) 2013-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  *
  * You can contact the author at :
  * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy
@@ -105,3 +106,5 @@ extern int g_debuglevel; /* the variable is only declared,
 #endif
 
 #endif /* DEBUG_H_12987983217 */
+
+#endif /* USE_EXTERNAL_ZSTD */

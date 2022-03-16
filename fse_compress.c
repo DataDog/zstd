@@ -1,6 +1,7 @@
+#ifndef USE_EXTERNAL_ZSTD
 /* ******************************************************************
  * FSE : Finite State Entropy encoder
- * Copyright (c) 2013-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  *
  *  You can contact the author at :
  *  - FSE source repository : https://github.com/Cyan4973/FiniteStateEntropy
@@ -703,3 +704,5 @@ size_t FSE_compress (void* dst, size_t dstCapacity, const void* src, size_t srcS
 #endif
 
 #endif   /* FSE_COMMONDEFS_ONLY */
+
+#endif /* USE_EXTERNAL_ZSTD */

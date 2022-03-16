@@ -1,5 +1,6 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -242,3 +243,5 @@ unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict)
     if (ddict==NULL) return 0;
     return ZSTD_getDictID_fromDict(ddict->dictContent, ddict->dictSize);
 }
+
+#endif /* USE_EXTERNAL_ZSTD */

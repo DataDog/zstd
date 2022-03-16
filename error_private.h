@@ -1,5 +1,6 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -21,8 +22,8 @@ extern "C" {
 /* ****************************************
 *  Dependencies
 ******************************************/
-#include "zstd_deps.h"    /* size_t */
 #include "zstd_errors.h"  /* enum list */
+#include "zstd_deps.h"       /* size_t */
 
 
 /* ****************************************
@@ -78,3 +79,5 @@ ERR_STATIC const char* ERR_getErrorName(size_t code)
 #endif
 
 #endif /* ERROR_H_MODULE */
+
+#endif /* USE_EXTERNAL_ZSTD */

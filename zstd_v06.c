@@ -1,5 +1,6 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -3029,7 +3030,7 @@ typedef struct
 *   Provides the size of compressed block from block header `src` */
 static size_t ZSTDv06_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
-    const BYTE* const in = (const BYTE* const)src;
+    const BYTE* const in = (const BYTE*)src;
     U32 cSize;
 
     if (srcSize < ZSTDv06_blockHeaderSize) return ERROR(srcSize_wrong);
@@ -3223,7 +3224,7 @@ static size_t ZSTDv06_decodeSeqHeaders(int* nbSeqPtr,
                              FSEv06_DTable* DTableLL, FSEv06_DTable* DTableML, FSEv06_DTable* DTableOffb, U32 flagRepeatTable,
                              const void* src, size_t srcSize)
 {
-    const BYTE* const istart = (const BYTE* const)src;
+    const BYTE* const istart = (const BYTE*)src;
     const BYTE* const iend = istart + srcSize;
     const BYTE* ip = istart;
 
@@ -3445,7 +3446,7 @@ static size_t ZSTDv06_decompressSequences(
 {
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
-    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + maxDstSize;
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
@@ -3561,7 +3562,7 @@ static size_t ZSTDv06_decompressFrame(ZSTDv06_DCtx* dctx,
 {
     const BYTE* ip = (const BYTE*)src;
     const BYTE* const iend = ip + srcSize;
-    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     BYTE* const oend = ostart + dstCapacity;
     size_t remainingSize = srcSize;
@@ -4156,3 +4157,5 @@ size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* zbd,
 ***************************************/
 size_t ZBUFFv06_recommendedDInSize(void)  { return ZSTDv06_BLOCKSIZE_MAX + ZSTDv06_blockHeaderSize /* block header size*/ ; }
 size_t ZBUFFv06_recommendedDOutSize(void) { return ZSTDv06_BLOCKSIZE_MAX; }
+
+#endif /* USE_EXTERNAL_ZSTD */

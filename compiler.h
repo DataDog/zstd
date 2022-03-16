@@ -1,5 +1,6 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -89,6 +90,7 @@
 #    define FORCE_NOINLINE static
 #  endif
 #endif
+
 
 /* target attribute */
 #ifndef __has_attribute
@@ -286,3 +288,5 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #endif
 
 #endif /* ZSTD_COMPILER_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

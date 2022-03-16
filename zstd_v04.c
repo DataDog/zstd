@@ -1,5 +1,6 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -3649,3 +3650,5 @@ size_t ZBUFFv04_decompressContinue(ZBUFFv04_DCtx* dctx, void* dst, size_t* maxDs
 
 ZSTD_DCtx* ZSTDv04_createDCtx(void) { return ZSTD_createDCtx(); }
 size_t ZSTDv04_freeDCtx(ZSTD_DCtx* dctx) { return ZSTD_freeDCtx(dctx); }
+
+#endif /* USE_EXTERNAL_ZSTD */

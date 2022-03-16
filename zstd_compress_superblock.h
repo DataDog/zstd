@@ -1,5 +1,6 @@
+#ifndef USE_EXTERNAL_ZSTD
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -30,3 +31,5 @@ size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
                                unsigned lastBlock);
 
 #endif /* ZSTD_COMPRESS_ADVANCED_H */
+
+#endif /* USE_EXTERNAL_ZSTD */

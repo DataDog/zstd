@@ -6,7 +6,6 @@ package zstd
 // https://github.com/facebook/zstd/blob/dev/programs/README.md
 #cgo CFLAGS: -DZSTD_LEGACY_SUPPORT=4
 
-#define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 */
 import "C"
