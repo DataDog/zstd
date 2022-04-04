@@ -15,6 +15,32 @@ var dictBase64 string = `
 	ZWxwIEpvaW4gZW5naW5lZXJzIGVuZ2luZWVycyBmdXR1cmUgbG92ZSB0aGF0IGFyZWlsZGluZyB1
 	c2UgaGVscCBoZWxwIHVzaGVyIEpvaW4gdXNlIGxvdmUgdXMgSm9pbiB1bmQgaW4gdXNoZXIgdXNo
 	ZXIgYSBwbGF0Zm9ybSB1c2UgYW5kIGZ1dHVyZQ==`
+var dict []byte
+var compressedPayload []byte
+
+func init() {
+	var err error
+	dict, err = base64.StdEncoding.DecodeString(regexp.MustCompile(`\s+`).ReplaceAllString(dictBase64, ""))
+	if err != nil {
+		panic("failed to create dictionary")
+	}
+	p, err := NewBulkProcessor(dict, BestSpeed)
+	if err != nil {
+		panic("failed to create bulk processor")
+	}
+	compressedPayload, err = p.Compress(nil, []byte("We're building a platform that engineers love to use. Join us, and help usher in the future."))
+	if err != nil {
+		panic("failed to compress payload")
+	}
+}
+
+func newBulkProcessor(t testing.TB, dict []byte, level int) *BulkProcessor {
+	p, err := NewBulkProcessor(dict, level)
+	if err != nil {
+		t.Fatal("failed to create a BulkProcessor")
+	}
+	return p
+}
 
 func getRandomText() string {
 	words := []string{"We", "are", "building", "a platform", "that", "engineers", "love", "to", "use", "Join", "us", "and", "help", "usher", "in", "the", "future"}
@@ -27,51 +53,145 @@ func getRandomText() string {
 	return strings.Join(result, " ")
 }
 
-func TestCompressAndDecompress(t *testing.T) {
-	var b64 = base64.StdEncoding
-	dict, err := b64.DecodeString(regexp.MustCompile(`\s+`).ReplaceAllString(dictBase64, ""))
-	if err != nil {
-		t.Fatalf("failed to decode the dictionary")
+func TestBulkDictionary(t *testing.T) {
+	if len(dict) < 1 {
+		t.Error("dictionary is empty")
 	}
+}
 
-	p, err := NewBulkProcessor(dict, BestSpeed)
-	if err != nil {
-		t.Fatalf("failed to create a BulkProcessor")
-	}
-
+func TestBulkCompressAndDecompress(t *testing.T) {
+	p := newBulkProcessor(t, dict, BestSpeed)
 	for i := 0; i < 100; i++ {
 		payload := []byte(getRandomText())
 
 		compressed, err := p.Compress(nil, payload)
 		if err != nil {
-			t.Fatalf("failed to compress")
+			t.Error("failed to compress")
 		}
 
 		uncompressed, err := p.Decompress(nil, compressed)
 		if err != nil {
-			t.Fatalf("failed to decompress")
+			t.Error("failed to decompress")
 		}
 
 		if bytes.Compare(payload, uncompressed) != 0 {
-			t.Fatalf("uncompressed payload didn't match")
+			t.Error("uncompressed payload didn't match")
 		}
 	}
-
-	p.Cleanup()
 }
 
-func TestCompressAndDecompressInReverseOrder(t *testing.T) {
-	var b64 = base64.StdEncoding
-	dict, err := b64.DecodeString(regexp.MustCompile(`\s+`).ReplaceAllString(dictBase64, ""))
-	if err != nil {
-		t.Fatalf("failed to decode the dictionary")
+func TestBulkEmptyOrNilDictionary(t *testing.T) {
+	p, err := NewBulkProcessor(nil, BestSpeed)
+	if p != nil {
+		t.Error("nil is expected")
+	}
+	if err != ErrEmptyDictionary {
+		t.Error("ErrEmptyDictionary is expected")
 	}
 
-	p, err := NewBulkProcessor(dict, BestSpeed)
+	p, err = NewBulkProcessor([]byte{}, BestSpeed)
+	if p != nil {
+		t.Error("nil is expected")
+	}
+	if err != ErrEmptyDictionary {
+		t.Error("ErrEmptyDictionary is expected")
+	}
+}
+
+func TestBulkCompressEmptyOrNilContent(t *testing.T) {
+	p := newBulkProcessor(t, dict, BestSpeed)
+	compressed, err := p.Compress(nil, nil)
 	if err != nil {
-		t.Fatalf("failed to create a BulkProcessor")
+		t.Error("failed to compress")
+	}
+	if len(compressed) < 4 {
+		t.Error("magic number doesn't exist")
 	}
 
+	compressed, err = p.Compress(nil, []byte{})
+	if err != nil {
+		t.Error("failed to compress")
+	}
+	if len(compressed) < 4 {
+		t.Error("magic number doesn't exist")
+	}
+}
+
+func TestBulkCompressIntoGivenDestination(t *testing.T) {
+	p := newBulkProcessor(t, dict, BestSpeed)
+	dst := make([]byte, 100000)
+	compressed, err := p.Compress(dst, []byte(getRandomText()))
+	if err != nil {
+		t.Error("failed to compress")
+	}
+	if len(compressed) < 4 {
+		t.Error("magic number doesn't exist")
+	}
+	if &dst[0] != &compressed[0] {
+		t.Error("'dst' and 'compressed' are not the same object")
+	}
+}
+
+func TestBulkCompressNotEnoughDestination(t *testing.T) {
+	p := newBulkProcessor(t, dict, BestSpeed)
+	dst := make([]byte, 1)
+	compressed, err := p.Compress(dst, []byte(getRandomText()))
+	if err != nil {
+		t.Error("failed to compress")
+	}
+	if len(compressed) < 4 {
+		t.Error("magic number doesn't exist")
+	}
+	if &dst[0] == &compressed[0] {
+		t.Error("'dst' and 'compressed' are the same object")
+	}
+}
+
+func TestBulkDecompressIntoGivenDestination(t *testing.T) {
+	p := newBulkProcessor(t, dict, BestSpeed)
+	dst := make([]byte, 100000)
+	decompressed, err := p.Decompress(dst, compressedPayload)
+	if err != nil {
+		t.Error("failed to decompress")
+	}
+	if &dst[0] != &decompressed[0] {
+		t.Error("'dst' and 'decompressed' are not the same object")
+	}
+}
+
+func TestBulkDecompressNotEnoughDestination(t *testing.T) {
+	p := newBulkProcessor(t, dict, BestSpeed)
+	dst := make([]byte, 1)
+	decompressed, err := p.Decompress(dst, compressedPayload)
+	if err != nil {
+		t.Error("failed to decompress")
+	}
+	if &dst[0] == &decompressed[0] {
+		t.Error("'dst' and 'decompressed' are the same object")
+	}
+}
+
+func TestBulkDecompressEmptyOrNilContent(t *testing.T) {
+	p := newBulkProcessor(t, dict, BestSpeed)
+	decompressed, err := p.Decompress(nil, nil)
+	if err != ErrEmptySlice {
+		t.Error("ErrEmptySlice is expected")
+	}
+	if decompressed != nil {
+		t.Error("nil is expected")
+	}
+
+	decompressed, err = p.Decompress(nil, []byte{})
+	if err != ErrEmptySlice {
+		t.Error("ErrEmptySlice is expected")
+	}
+	if decompressed != nil {
+		t.Error("nil is expected")
+	}
+}
+
+func TestBulkCompressAndDecompressInReverseOrder(t *testing.T) {
+	p := newBulkProcessor(t, dict, BestSpeed)
 	payloads := [][]byte{}
 	compressedPayloads := [][]byte{}
 	for i := 0; i < 100; i++ {
@@ -79,7 +199,7 @@ func TestCompressAndDecompressInReverseOrder(t *testing.T) {
 
 		compressed, err := p.Compress(nil, payloads[i])
 		if err != nil {
-			t.Fatalf("failed to compress")
+			t.Error("failed to compress")
 		}
 		compressedPayloads = append(compressedPayloads, compressed)
 	}
@@ -87,66 +207,38 @@ func TestCompressAndDecompressInReverseOrder(t *testing.T) {
 	for i := 99; i >= 0; i-- {
 		uncompressed, err := p.Decompress(nil, compressedPayloads[i])
 		if err != nil {
-			t.Fatalf("failed to decompress")
+			t.Error("failed to decompress")
 		}
 
 		if bytes.Compare(payloads[i], uncompressed) != 0 {
-			t.Fatalf("uncompressed payload didn't match")
+			t.Error("uncompressed payload didn't match")
 		}
 	}
-
-	p.Cleanup()
 }
 
-// BenchmarkCompress-8   	  715689	      1550 ns/op	  59.37 MB/s	     208 B/op	       5 allocs/op
-func BenchmarkCompress(b *testing.B) {
-	var b64 = base64.StdEncoding
-	dict, err := b64.DecodeString(regexp.MustCompile(`\s+`).ReplaceAllString(dictBase64, ""))
-	if err != nil {
-		b.Fatalf("failed to decode the dictionary")
-	}
-
-	p, err := NewBulkProcessor(dict, BestSpeed)
-	if err != nil {
-		b.Fatalf("failed to create a BulkProcessor")
-	}
+// BenchmarkBulkCompress-8   	  780148	      1505 ns/op	  61.14 MB/s	     208 B/op	       5 allocs/op
+func BenchmarkBulkCompress(b *testing.B) {
+	p := newBulkProcessor(b, dict, BestSpeed)
 
 	payload := []byte("We're building a platform that engineers love to use. Join us, and help usher in the future.")
+	b.SetBytes(int64(len(payload)))
 	for n := 0; n < b.N; n++ {
 		_, err := p.Compress(nil, payload)
 		if err != nil {
-			b.Fatalf("failed to compress")
+			b.Error("failed to compress")
 		}
-		b.SetBytes(int64(len(payload)))
 	}
-
-	p.Cleanup()
 }
 
-// BenchmarkDecompress-8   	  664922	      1544 ns/op	  36.91 MB/s	     192 B/op	       7 allocs/op
-func BenchmarkDecompress(b *testing.B) {
-	var b64 = base64.StdEncoding
-	dict, err := b64.DecodeString(regexp.MustCompile(`\s+`).ReplaceAllString(dictBase64, ""))
-	if err != nil {
-		b.Fatalf("failed to decode the dictionary")
-	}
+// BenchmarkBulkDecompress-8   	  817425	      1412 ns/op	  40.37 MB/s	     192 B/op	       7 allocs/op
+func BenchmarkBulkDecompress(b *testing.B) {
+	p := newBulkProcessor(b, dict, BestSpeed)
 
-	p, err := NewBulkProcessor(dict, BestSpeed)
-	if err != nil {
-		b.Fatalf("failed to create a BulkProcessor")
-	}
-
-	payload, err := p.Compress(nil, []byte("We're building a platform that engineers love to use. Join us, and help usher in the future."))
-	if err != nil {
-		b.Fatalf("failed to compress")
-	}
+	b.SetBytes(int64(len(compressedPayload)))
 	for n := 0; n < b.N; n++ {
-		_, err := p.Decompress(nil, payload)
+		_, err := p.Decompress(nil, compressedPayload)
 		if err != nil {
-			b.Fatalf("failed to decompress")
+			b.Error("failed to decompress")
 		}
-		b.SetBytes(int64(len(payload)))
 	}
-
-	p.Cleanup()
 }
