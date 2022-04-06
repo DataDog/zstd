@@ -2,6 +2,7 @@ package zstd
 
 import (
 	"bytes"
+	b64 "encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -281,6 +282,14 @@ func TestLegacy(t *testing.T) {
 				t.Errorf("expected to find %#v; output=%#v", testCase.expected, string(out))
 			}
 		})
+	}
+}
+
+func TestBadPayloadZipBomb(t *testing.T) {
+	payload, _ := b64.StdEncoding.DecodeString("KLUv/dcwMDAwMDAwMDAwMAAA")
+	_, err := Decompress(nil, payload)
+	if err.Error() != "Src size is incorrect" {
+		t.Fatal("zstd should detect that the size is incorrect")
 	}
 }
 
