@@ -125,21 +125,6 @@ func Decompress(dst, src []byte) ([]byte, error) {
 	if len(src) == 0 {
 		return []byte{}, ErrEmptySlice
 	}
-	decompress := func(dst, src []byte) ([]byte, error) {
-
-		cWritten := C.ZSTD_decompress(
-			unsafe.Pointer(&dst[0]),
-			C.size_t(len(dst)),
-			unsafe.Pointer(&src[0]),
-			C.size_t(len(src)))
-
-		written := int(cWritten)
-		// Check error
-		if err := getError(written); err != nil {
-			return nil, err
-		}
-		return dst[:written], nil
-	}
 
 	bound := decompressSizeHint(src)
 	if cap(dst) >= bound {
@@ -147,12 +132,18 @@ func Decompress(dst, src []byte) ([]byte, error) {
 	} else {
 		dst = make([]byte, bound)
 	}
-	for i := 0; i < 3; i++ { // 3 tries to allocate a bigger buffer
-		result, err := decompress(dst, src)
-		if !IsDstSizeTooSmallError(err) {
-			return result, err
-		}
-		dst = make([]byte, len(dst)*2) // Grow buffer by 2
+
+	written := int(C.ZSTD_decompress(
+		unsafe.Pointer(&dst[0]),
+		C.size_t(len(dst)),
+		unsafe.Pointer(&src[0]),
+		C.size_t(len(src))))
+	err := getError(written)
+	if err == nil {
+		return dst[:written], nil
+	}
+	if !IsDstSizeTooSmallError(err) {
+		return nil, err
 	}
 
 	// We failed getting a dst buffer of correct size, use stream API
