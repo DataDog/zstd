@@ -15,8 +15,6 @@ var (
 	ErrEmptyDictionary = errors.New("Dictionary is empty")
 	// ErrBadDictionary is returned when cannot load the given dictionary
 	ErrBadDictionary = errors.New("Cannot load dictionary")
-	// ErrContentSize is returned when cannot determine the content size
-	ErrContentSize = errors.New("Cannot determine the content size")
 )
 
 // BulkProcessor implements Bulk processing dictionary API.
@@ -111,12 +109,9 @@ func (p *BulkProcessor) Decompress(dst, src []byte) ([]byte, error) {
 	if len(src) == 0 {
 		return nil, ErrEmptySlice
 	}
-	contentSize := uint64(C.ZSTD_getFrameContentSize(unsafe.Pointer(&src[0]), C.size_t(len(src))))
-	if contentSize == C.ZSTD_CONTENTSIZE_ERROR || contentSize == C.ZSTD_CONTENTSIZE_UNKNOWN {
-		return nil, ErrContentSize
-	}
 
-	if cap(dst) >= int(contentSize) {
+	contentSize := decompressSizeHint(src)
+	if cap(dst) >= contentSize {
 		dst = dst[0:contentSize]
 	} else {
 		dst = make([]byte, contentSize)

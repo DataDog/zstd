@@ -96,43 +96,27 @@ func (c *ctx) Decompress(dst, src []byte) ([]byte, error) {
 	if len(src) == 0 {
 		return []byte{}, ErrEmptySlice
 	}
-	decompress := func(dst, src []byte) ([]byte, error) {
 
-		cWritten := C.ZSTD_decompressDCtx(
-			c.dctx,
-			unsafe.Pointer(&dst[0]),
-			C.size_t(len(dst)),
-			unsafe.Pointer(&src[0]),
-			C.size_t(len(src)))
+	bound := decompressSizeHint(src)
+	if cap(dst) >= bound {
+		dst = dst[0:cap(dst)]
+	} else {
+		dst = make([]byte, bound)
+	}
 
-		written := int(cWritten)
-		// Check error
-		if err := getError(written); err != nil {
-			return nil, err
-		}
+	written := int(C.ZSTD_decompressDCtx(
+		c.dctx,
+		unsafe.Pointer(&dst[0]),
+		C.size_t(len(dst)),
+		unsafe.Pointer(&src[0]),
+		C.size_t(len(src))))
+
+	err := getError(written)
+	if err == nil {
 		return dst[:written], nil
 	}
-
-	if len(dst) == 0 {
-		// Attempt to use zStd to determine decompressed size (may result in error or 0)
-		size := int(C.size_t(C.ZSTD_getDecompressedSize(unsafe.Pointer(&src[0]), C.size_t(len(src)))))
-
-		if err := getError(size); err != nil {
-			return nil, err
-		}
-
-		if size > 0 {
-			dst = make([]byte, size)
-		} else {
-			dst = make([]byte, len(src)*3) // starting guess
-		}
-	}
-	for i := 0; i < 3; i++ { // 3 tries to allocate a bigger buffer
-		result, err := decompress(dst, src)
-		if !IsDstSizeTooSmallError(err) {
-			return result, err
-		}
-		dst = make([]byte, len(dst)*2) // Grow buffer by 2
+	if !IsDstSizeTooSmallError(err) {
+		return nil, err
 	}
 
 	// We failed getting a dst buffer of correct size, use stream API
