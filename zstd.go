@@ -29,6 +29,13 @@ var (
 )
 
 const (
+	// decompressSizeBufferLimit is the limit we set on creating a decompression buffer for the Decompress API
+	// This is made to prevent DOS from maliciously-created payloads (aka zipbomb).
+	// For large payloads with a compression ratio > 10, you can do your own allocation and pass it to the method:
+	// dst := make([]byte, 1GB)
+	// decompressed, err := zstd.Decompress(dst, src)
+	decompressSizeBufferLimit = 1000 * 1000
+
 	zstdFrameHeaderSizeMax = 18 // From zstd.h. Since it's experimental API, hardcoding it
 )
 
@@ -55,8 +62,8 @@ func cCompressBound(srcSize int) int {
 func decompressSizeHint(src []byte) int {
 	// 1 MB or 10x input size
 	upperBound := 10 * len(src)
-	if upperBound < 1000*1000 {
-		upperBound = 1000 * 1000
+	if upperBound < decompressSizeBufferLimit {
+		upperBound = decompressSizeBufferLimit
 	}
 
 	hint := upperBound
