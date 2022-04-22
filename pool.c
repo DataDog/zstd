@@ -87,7 +87,7 @@ static void* POOL_thread(void* opaque) {
         {   POOL_job const job = ctx->queue[ctx->queueHead];
             ctx->queueHead = (ctx->queueHead + 1) % ctx->queueSize;
             ctx->numThreadsBusy++;
-            ctx->queueEmpty = ctx->queueHead == ctx->queueTail;
+            ctx->queueEmpty = (ctx->queueHead == ctx->queueTail);
             /* Unlock the mutex, signal a pusher, and run the job */
             ZSTD_pthread_cond_signal(&ctx->queuePushCond);
             ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
@@ -106,6 +106,7 @@ static void* POOL_thread(void* opaque) {
     assert(0);  /* Unreachable */
 }
 
+/* ZSTD_createThreadPool() : public access point */
 POOL_ctx* ZSTD_createThreadPool(size_t numThreads) {
     return POOL_create (numThreads, 0);
 }
@@ -115,7 +116,8 @@ POOL_ctx* POOL_create(size_t numThreads, size_t queueSize) {
 }
 
 POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize,
-                               ZSTD_customMem customMem) {
+                               ZSTD_customMem customMem)
+{
     POOL_ctx* ctx;
     /* Check parameters */
     if (!numThreads) { return NULL; }
@@ -193,7 +195,7 @@ void ZSTD_freeThreadPool (ZSTD_threadPool* pool) {
   POOL_free (pool);
 }
 
-size_t POOL_sizeof(POOL_ctx *ctx) {
+size_t POOL_sizeof(const POOL_ctx* ctx) {
     if (ctx==NULL) return 0;  /* supports sizeof NULL */
     return sizeof(*ctx)
         + ctx->queueSize * sizeof(POOL_job)
@@ -258,7 +260,8 @@ static int isQueueFull(POOL_ctx const* ctx) {
 }
 
 
-static void POOL_add_internal(POOL_ctx* ctx, POOL_function function, void *opaque)
+static void
+POOL_add_internal(POOL_ctx* ctx, POOL_function function, void *opaque)
 {
     POOL_job const job = {function, opaque};
     assert(ctx != NULL);
@@ -314,7 +317,9 @@ POOL_ctx* POOL_create(size_t numThreads, size_t queueSize) {
     return POOL_create_advanced(numThreads, queueSize, ZSTD_defaultCMem);
 }
 
-POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize, ZSTD_customMem customMem) {
+POOL_ctx*
+POOL_create_advanced(size_t numThreads, size_t queueSize, ZSTD_customMem customMem)
+{
     (void)numThreads;
     (void)queueSize;
     (void)customMem;
@@ -342,7 +347,7 @@ int POOL_tryAdd(POOL_ctx* ctx, POOL_function function, void* opaque) {
     return 1;
 }
 
-size_t POOL_sizeof(POOL_ctx* ctx) {
+size_t POOL_sizeof(const POOL_ctx* ctx) {
     if (ctx==NULL) return 0;  /* supports sizeof NULL */
     assert(ctx == &g_poolCtx);
     return sizeof(*ctx);
