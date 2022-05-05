@@ -302,6 +302,17 @@ func (w *Writer) Close() error {
 	return getError(int(C.ZSTD_freeCStream(w.ctx)))
 }
 
+func (w *Writer) SetNbWorkers(n int) error {
+	if w.firstError != nil {
+		return w.firstError
+	}
+	if err := getError(int(C.ZSTD_CCtx_setParameter(w.ctx, C.ZSTD_c_nbWorkers, C.int(n)))); err != nil {
+		w.firstError = err
+		return err
+	}
+	return nil
+}
+
 // cSize is the recommended size of reader.compressionBuffer. This func and
 // invocation allow for a one-time check for validity.
 var cSize = func() int {
