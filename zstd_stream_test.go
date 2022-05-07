@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"runtime/debug"
+	"strings"
 	"testing"
 )
 
@@ -19,10 +20,14 @@ func failOnError(t *testing.T, msg string, err error) {
 	}
 }
 
-func testCompressionDecompression(t *testing.T, dict []byte, payload []byte) {
+func testCompressionDecompression(t *testing.T, dict []byte, payload []byte, nbWorkers int) {
 	var w bytes.Buffer
 	writer := NewWriterLevelDict(&w, DefaultCompression, dict)
-	_, err := writer.Write(payload)
+
+	err := writer.SetNbWorkers(nbWorkers)
+	failOnError(t, "Failed writing to compress object", err)
+
+	_, err = writer.Write(payload)
 	failOnError(t, "Failed writing to compress object", err)
 	failOnError(t, "Failed to close compress object", writer.Close())
 	out := w.Bytes()
@@ -79,11 +84,11 @@ func TestResize(t *testing.T) {
 }
 
 func TestStreamSimpleCompressionDecompression(t *testing.T) {
-	testCompressionDecompression(t, nil, []byte("Hello world!"))
+	testCompressionDecompression(t, nil, []byte("Hello world!"), 1)
 }
 
 func TestStreamEmptySlice(t *testing.T) {
-	testCompressionDecompression(t, nil, []byte{})
+	testCompressionDecompression(t, nil, []byte{}, 1)
 }
 
 func TestZstdReaderLong(t *testing.T) {
@@ -91,7 +96,7 @@ func TestZstdReaderLong(t *testing.T) {
 	for i := 0; i < 10000; i++ {
 		long.Write([]byte("Hellow World!"))
 	}
-	testCompressionDecompression(t, nil, long.Bytes())
+	testCompressionDecompression(t, nil, long.Bytes(), 1)
 }
 
 func doStreamCompressionDecompression() error {
@@ -186,7 +191,7 @@ func TestStreamRealPayload(t *testing.T) {
 	if raw == nil {
 		t.Skip(ErrNoPayloadEnv)
 	}
-	testCompressionDecompression(t, nil, raw)
+	testCompressionDecompression(t, nil, raw, 1)
 }
 
 func TestStreamEmptyPayload(t *testing.T) {
@@ -396,6 +401,27 @@ func TestStreamWriteNoGoPointers(t *testing.T) {
 		}
 		return buf.Bytes(), nil
 	})
+}
+
+func TestStreamSetNbWorkers(t *testing.T) {
+	// Build a big string first
+	sb := strings.Builder{}
+	n := 1000 * 1000
+	sb.Grow(n)
+	for i := 0; i < n; i++ {
+		if i%2 == 0 {
+			sb.WriteByte('f')
+			sb.WriteByte('o')
+			sb.WriteByte('o')
+		} else {
+			sb.WriteByte('b')
+			sb.WriteByte('a')
+			sb.WriteByte('a')
+		}
+	}
+
+	nbWorkers := 4
+	testCompressionDecompression(t, nil, []byte(sb.String()), nbWorkers)
 }
 
 func BenchmarkStreamCompression(b *testing.B) {
