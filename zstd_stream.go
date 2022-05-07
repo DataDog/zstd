@@ -302,6 +302,8 @@ func (w *Writer) Close() error {
 	return getError(int(C.ZSTD_freeCStream(w.ctx)))
 }
 
+// Set the number of workers to run the compression in parallel using multiple threads
+// By default only one worker is used. Using multiple worker will increase memory usage
 func (w *Writer) SetNbWorkers(n int) error {
 	if w.firstError != nil {
 		return w.firstError
