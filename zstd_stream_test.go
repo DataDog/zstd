@@ -408,23 +408,10 @@ func TestStreamWriteNoGoPointers(t *testing.T) {
 
 func TestStreamSetNbWorkers(t *testing.T) {
 	// Build a big string first
-	sb := strings.Builder{}
-	n := 1000 * 1000
-	sb.Grow(n)
-	for i := 0; i < n; i++ {
-		if i%2 == 0 {
-			sb.WriteByte('f')
-			sb.WriteByte('o')
-			sb.WriteByte('o')
-		} else {
-			sb.WriteByte('b')
-			sb.WriteByte('a')
-			sb.WriteByte('a')
-		}
-	}
+	s := strings.Repeat("foobaa", 1000*1000)
 
 	nbWorkers := 4
-	testCompressionDecompression(t, nil, []byte(sb.String()), nbWorkers)
+	testCompressionDecompression(t, nil, []byte(s), nbWorkers)
 }
 
 func BenchmarkStreamCompression(b *testing.B) {
