@@ -24,10 +24,13 @@ func testCompressionDecompression(t *testing.T, dict []byte, payload []byte, nbW
 	var w bytes.Buffer
 	writer := NewWriterLevelDict(&w, DefaultCompression, dict)
 
-	err := writer.SetNbWorkers(nbWorkers)
-	failOnError(t, "Failed writing to compress object", err)
+	if nbWorkers > 1 {
+		if err := writer.SetNbWorkers(nbWorkers); err == ErrNoParallelSupport {
+			t.Skip()
+		}
+	}
 
-	_, err = writer.Write(payload)
+	_, err := writer.Write(payload)
 	failOnError(t, "Failed writing to compress object", err)
 	failOnError(t, "Failed to close compress object", writer.Close())
 	out := w.Bytes()

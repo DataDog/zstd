@@ -72,6 +72,7 @@ import (
 
 var errShortRead = errors.New("short read")
 var errReaderClosed = errors.New("Reader is closed")
+var ErrNoParallelSupport = errors.New("No parallel support")
 
 // Writer is an io.WriteCloser that zstd-compresses its input.
 type Writer struct {
@@ -310,7 +311,13 @@ func (w *Writer) SetNbWorkers(n int) error {
 	}
 	if err := getError(int(C.ZSTD_CCtx_setParameter(w.ctx, C.ZSTD_c_nbWorkers, C.int(n)))); err != nil {
 		w.firstError = err
-		return err
+		// First error case, a shared libary is used, and the library was compiled without parallel support
+		if err.Error() == "Unsupported parameter" {
+			return ErrNoParallelSupport
+		} else {
+			// This could happen if a very large number is passed in, and possibly zstd refuse to create as many threads, or the OS fails to do so
+			return err
+		}
 	}
 	return nil
 }
