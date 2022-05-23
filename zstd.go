@@ -67,6 +67,10 @@ func decompressSizeHint(src []byte) int {
 	}
 
 	hint := int(C.ZSTD_getFrameContentSize(unsafe.Pointer(&src[0]), C.size_t(len(src))))
+	if hint == 0 {
+		// The minimal hint size is 1, beacuse if we return a size with 0, the following access operation will panic with `index out of range`.
+		hint = 1
+	}
 	if hint < 0 { // On error, just use upperBound
 		hint = upperBound
 	}
