@@ -66,12 +66,9 @@ func decompressSizeHint(src []byte) int {
 		upperBound = decompressSizeBufferLimit
 	}
 
-	hint := upperBound
-	if len(src) >= zstdFrameHeaderSizeMax {
-		hint = int(C.ZSTD_getFrameContentSize(unsafe.Pointer(&src[0]), C.size_t(len(src))))
-		if hint < 0 { // On error, just use upperBound
-			hint = upperBound
-		}
+	hint := int(C.ZSTD_getFrameContentSize(unsafe.Pointer(&src[0]), C.size_t(len(src))))
+	if hint < 0 { // On error, just use upperBound
+		hint = upperBound
 	}
 
 	// Take the minimum of both
