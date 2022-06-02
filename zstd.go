@@ -72,6 +72,9 @@ func decompressSizeHint(src []byte) int {
 		if hint < 0 { // On error, just use upperBound
 			hint = upperBound
 		}
+		if hint == 0 { // When compressing the empty slice, we need an output of at least 1 to pass down to the C lib
+			hint = 1
+		}
 	}
 
 	// Take the minimum of both
