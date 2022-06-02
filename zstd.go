@@ -36,7 +36,7 @@ const (
 	// decompressed, err := zstd.Decompress(dst, src)
 	decompressSizeBufferLimit = 1000 * 1000
 
-	zstdFrameHeaderSizeMax = 18 // From zstd.h. Since it's experimental API, hardcoding it
+	zstdFrameHeaderSizeMin = 2 // From zstd.h. Since it's experimental API, hardcoding it
 )
 
 // CompressBound returns the worst case size needed for a destination buffer,
@@ -67,7 +67,7 @@ func decompressSizeHint(src []byte) int {
 	}
 
 	hint := upperBound
-	if len(src) >= zstdFrameHeaderSizeMax {
+	if len(src) >= zstdFrameHeaderSizeMin {
 		hint = int(C.ZSTD_getFrameContentSize(unsafe.Pointer(&src[0]), C.size_t(len(src))))
 		if hint < 0 { // On error, just use upperBound
 			hint = upperBound
