@@ -37,6 +37,9 @@ const (
 	decompressSizeBufferLimit = 1000 * 1000
 
 	zstdFrameHeaderSizeMax = 18 // From zstd.h. Since it's experimental API, hardcoding it
+
+	// From: https://github.com/DataDog/zstd/blob/1.x/zstd.h#L1123
+	zstdFrameHeaderSizeMin = 2
 )
 
 // CompressBound returns the worst case size needed for a destination buffer,
@@ -67,12 +70,12 @@ func decompressSizeHint(src []byte) int {
 	}
 
 	hint := int(C.ZSTD_getFrameContentSize(unsafe.Pointer(&src[0]), C.size_t(len(src))))
-	if hint == 0 {
-		// The minimal hint size is 1, beacuse if we return a size with 0, the following access operation will panic with `index out of range`.
-		hint = 1
-	}
-	if hint < 0 { // On error, just use upperBound
-		hint = upperBound
+	if hint < zstdFrameHeaderSizeMin {
+		if hint >= 0 {
+			hint = zstdFrameHeaderSizeMin
+		} else { // On error (hint size less than 0), just use upperBound
+			hint = upperBound
+		}
 	}
 
 	// Take the minimum of both
