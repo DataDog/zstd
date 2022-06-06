@@ -4,7 +4,7 @@ package zstd
 // support decoding of "legacy" zstd payloads from versions [0.4, 0.8], matching the
 // default configuration of the zstd command line tool:
 // https://github.com/facebook/zstd/blob/dev/programs/README.md
-#cgo CFLAGS: -DZSTD_LEGACY_SUPPORT=4
+#cgo CFLAGS: -DZSTD_LEGACY_SUPPORT=4 -DZSTD_MULTITHREAD=1
 
 #include "zstd.h"
 */
