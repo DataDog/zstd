@@ -415,6 +415,7 @@ func TestStreamSetNbWorkers(t *testing.T) {
 }
 
 func BenchmarkStreamCompression(b *testing.B) {
+	maxMemoryLimit := 1024 * 1024 * 1024 // Max use 1GB
 	if raw == nil {
 		b.Fatal(ErrNoPayloadEnv)
 	}
@@ -424,6 +425,7 @@ func BenchmarkStreamCompression(b *testing.B) {
 	defer w.Close()
 	b.SetBytes(int64(len(raw)))
 	b.ResetTimer()
+	memUsed := 0
 	for i := 0; i < b.N; i++ {
 		_, err := w.Write(raw)
 		if err != nil {
@@ -431,6 +433,15 @@ func BenchmarkStreamCompression(b *testing.B) {
 		}
 		// Prevent from unbound buffer growth.
 		intermediate.Reset()
+		memUsed += len(raw)
+		if memUsed > maxMemoryLimit-len(raw) {
+			// Flush so that async workers are blocking
+			err = w.Flush()
+			if err != nil {
+				b.Fatalf("Failed to flush: %s", err)
+			}
+			memUsed = 0
+		}
 	}
 }
 
