@@ -420,6 +420,7 @@ func BenchmarkStreamCompression(b *testing.B) {
 	}
 	var intermediate bytes.Buffer
 	w := NewWriter(&intermediate)
+	w.SetNbWorkers(8)
 	defer w.Close()
 	b.SetBytes(int64(len(raw)))
 	b.ResetTimer()
