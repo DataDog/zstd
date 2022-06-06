@@ -304,7 +304,10 @@ func (w *Writer) Close() error {
 }
 
 // Set the number of workers to run the compression in parallel using multiple threads
-// By default only one worker is used. Using multiple worker will increase memory usage
+// If > 1, the Write() call will become asynchronous. This means data will be buffered until processed.
+// If you call Write() too fast, you might incur a memory buffer up to as large as your input.
+// Consider calling Flush() periodically if you need to compress a very large file that would not fit all in memory.
+// By default only one worker is used.
 func (w *Writer) SetNbWorkers(n int) error {
 	if w.firstError != nil {
 		return w.firstError
