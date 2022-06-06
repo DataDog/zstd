@@ -293,6 +293,25 @@ func TestBadPayloadZipBomb(t *testing.T) {
 	}
 }
 
+func TestSmallPayload(t *testing.T) {
+	// Test that we can compress really small payloads and this doesn't generate a huge output buffer
+	compressed, err := Compress(nil, []byte("a"))
+	if err != nil {
+		t.Fatalf("failed to compress: %s", err)
+	}
+
+	preAllocated := make([]byte, 1, 64) // Don't use more than that
+	decompressed, err := Decompress(preAllocated, compressed)
+	if err != nil {
+		t.Fatalf("failed to compress: %s", err)
+	}
+
+	if &(preAllocated[0]) != &(decompressed[0]) { // They should point to the same spot (no realloc)
+		t.Fatal("Compression buffer was changed")
+	}
+
+}
+
 func BenchmarkCompression(b *testing.B) {
 	if raw == nil {
 		b.Fatal(ErrNoPayloadEnv)
