@@ -336,7 +336,9 @@ func BenchmarkDecompression(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Failed compressing: %s", err)
 	}
-	b.Logf("Reduced from %v to %v", len(raw), len(dst))
+	if b.N == 1 {
+		b.Logf("Reduced from %v to %v", len(raw), len(dst))
+	}
 	b.SetBytes(int64(len(raw)))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
