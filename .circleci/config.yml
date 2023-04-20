@@ -3,7 +3,7 @@ version: 2
 jobs:
   "golang-1.16":
     docker:
-      - image: circleci/golang:1.16
+      - image: cimg/go:1.16
     steps:
       - checkout
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
@@ -13,7 +13,7 @@ jobs:
       - run: 'PAYLOAD=`pwd`/mr go test -bench .'
   "golang-1.16-external-libzstd":
     docker:
-      - image: circleci/golang:1.16
+      - image: cimg/go:1.16
     steps:
       - checkout
       - run: 'sudo apt update'
@@ -25,7 +25,7 @@ jobs:
       - run: 'PAYLOAD=`pwd`/mr go test -bench .'
   "golang-1.17":
     docker:
-      - image: circleci/golang:1.17
+      - image: cimg/go:1.17
     steps:
       - checkout
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
@@ -35,7 +35,7 @@ jobs:
       - run: 'PAYLOAD=`pwd`/mr go test -bench .'
   "golang-1.17-external-libzstd":
     docker:
-      - image: circleci/golang:1.17
+      - image: cimg/go:1.17
     steps:
       - checkout
       - run: 'sudo apt update'
@@ -47,7 +47,7 @@ jobs:
       - run: 'PAYLOAD=`pwd`/mr go test -bench .'
   "golang-latest":
     docker:
-      - image: circleci/golang:latest
+      - image: cimg/go:latest
     steps:
       - checkout
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
@@ -57,7 +57,7 @@ jobs:
       - run: 'PAYLOAD=`pwd`/mr go test -bench .'
   "golang-latest-external-libzstd":
     docker:
-      - image: circleci/golang:latest
+      - image: cimg/go:latest
     steps:
       - checkout
       - run: 'sudo apt update'
@@ -70,7 +70,7 @@ jobs:
   "golang-efence":
     resource_class: xlarge
     docker:
-      - image: circleci/golang:latest
+      - image: cimg/go:latest
     steps:
       - checkout
       - run: 'wget https://github.com/DataDog/zstd/files/2246767/mr.zip'
@@ -80,7 +80,7 @@ jobs:
   "golang-efence-external-libzstd":
     resource_class: xlarge
     docker:
-      - image: circleci/golang:latest
+      - image: cimg/go:latest
     steps:
       - checkout
       - run: 'sudo apt update'
