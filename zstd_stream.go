@@ -1,7 +1,10 @@
 package zstd
 
 /*
+#define ZSTD_STATIC_LINKING_ONLY
+#cgo pkg-config: qat-seq-prod
 #include "zstd.h"
+#include "qatseqprod.h"
 
 typedef struct compressStream2_result_s {
 	size_t return_code;
@@ -58,6 +61,20 @@ static void ZSTD_decompressStream_wrapper(decompressStream2_result* result, ZSTD
 	result->return_code = retCode;
 	result->bytes_consumed = inBuffer.pos;
 	result->bytes_written = outBuffer.pos;
+}
+
+static void enable_QAT_ZSTD(ZSTD_CCtx* ctx) {
+    QZSTD_startQatDevice();
+    // Create sequence producer state for QAT sequence producer
+    void *sequenceProducerState = QZSTD_createSeqProdState();
+    // register qatSequenceProducer
+    ZSTD_registerSequenceProducer(
+        ctx,
+        sequenceProducerState,
+        qatSequenceProducer
+    );
+    // Enable sequence producer fallback
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_enableSeqProducerFallback, 1);
 }
 */
 import "C"
@@ -128,7 +145,8 @@ func NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer {
 			C.size_t(len(dict)),
 		)))
 	}
-
+	
+	C.enable_QAT_ZSTD(ctx)
 	if err == nil {
 		// Only set level if the ctx is not in error already
 		err = getError(int(C.ZSTD_CCtx_setParameter(ctx, C.ZSTD_c_compressionLevel, C.int(level))))
