@@ -87,6 +87,35 @@ func TestCompressDecompress(t *testing.T) {
 	}
 }
 
+func TestCompressDecompressInto(t *testing.T) {
+	payload := []byte("Hello World!")
+	compressed, err := Compress(make([]byte, CompressBound(len(payload))), payload)
+	if err != nil {
+		t.Fatalf("Error while compressing: %v", err)
+	}
+	t.Logf("Compressed: %v", compressed)
+
+	// We know the size of the payload; construct a buffer that perfectly fits
+	// the payload and use DecompressInto.
+	decompressed := make([]byte, len(payload))
+	if n, err := DecompressInto(decompressed, compressed); err != nil {
+		t.Fatalf("error while decompressing into buffer of size %d: %v",
+			len(decompressed), err)
+	} else if n != len(decompressed) {
+		t.Errorf("DecompressedInto = (%d, nil), want (%d, nil)", n, len(decompressed))
+	}
+	if !bytes.Equal(payload, decompressed) {
+		t.Fatalf("DecompressInto(_, Compress(_, %q)) yielded %q, want %q", payload, decompressed, payload)
+	}
+
+	// Ensure that decompressing into a buffer too small errors appropriately.
+	smallBuffer := make([]byte, len(payload)-1)
+	if _, err := DecompressInto(smallBuffer, compressed); !IsDstSizeTooSmallError(err) {
+		t.Fatalf("DecompressInto(<%d-sized buffer>, Compress(_, %q)) = %v, want 'Destination buffer is too small'",
+			len(smallBuffer), payload, err)
+	}
+}
+
 func TestCompressLevel(t *testing.T) {
 	inputs := [][]byte{
 		nil, {}, {0}, []byte("Hello World!"),
