@@ -98,7 +98,7 @@ func TestBulkEmptyOrNilDictionary(t *testing.T) {
 	}
 }
 
-func TestBulkCompressEmptyOrNilContent(t *testing.T) {
+func TestBulkCompressDecompressEmptyOrNilContent(t *testing.T) {
 	p := newBulkProcessor(t, dict, BestSpeed)
 	compressed, err := p.Compress(nil, nil)
 	if err != nil {
@@ -114,6 +114,14 @@ func TestBulkCompressEmptyOrNilContent(t *testing.T) {
 	}
 	if len(compressed) < 4 {
 		t.Error("magic number doesn't exist")
+	}
+
+	decompressed, err := p.Decompress(nil, compressed)
+	if err != nil {
+		t.Error("failed to decompress")
+	}
+	if len(decompressed) != 0 {
+		t.Error("content was not decompressed correctly")
 	}
 }
 
