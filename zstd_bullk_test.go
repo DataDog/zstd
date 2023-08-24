@@ -216,6 +216,31 @@ func TestBulkCompressAndDecompressInReverseOrder(t *testing.T) {
 	}
 }
 
+func TestDecompressHighlyCompressable(t *testing.T) {
+	p := newBulkProcessor(t, dict, BestSpeed)
+
+	// Generate a big payload
+	msgSize := 10 * 1000 * 1000 // 10 MiB
+	msg := make([]byte, msgSize)
+	compressed, err := Compress(nil, msg)
+	if err != nil {
+		t.Error("failed to compress")
+	}
+
+	// Regular decompression would trigger zipbomb prevention
+	_, err = p.Decompress(nil, compressed)
+	if !IsDstSizeTooSmallError(err) {
+		t.Error("expected too small error")
+	}
+
+	// Passing an output should suceed the decompression
+	dst := make([]byte, 10*msgSize)
+	_, err = p.Decompress(dst, compressed)
+	if err != nil {
+		t.Errorf("failed to decompress: %s", err)
+	}
+}
+
 // BenchmarkBulkCompress-8   	  780148	      1505 ns/op	  61.14 MB/s	     208 B/op	       5 allocs/op
 func BenchmarkBulkCompress(b *testing.B) {
 	p := newBulkProcessor(b, dict, BestSpeed)
