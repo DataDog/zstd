@@ -98,7 +98,7 @@ func TestBulkEmptyOrNilDictionary(t *testing.T) {
 	}
 }
 
-func TestBulkCompressEmptyOrNilContent(t *testing.T) {
+func TestBulkCompressDecompressEmptyOrNilContent(t *testing.T) {
 	p := newBulkProcessor(t, dict, BestSpeed)
 	compressed, err := p.Compress(nil, nil)
 	if err != nil {
@@ -114,6 +114,14 @@ func TestBulkCompressEmptyOrNilContent(t *testing.T) {
 	}
 	if len(compressed) < 4 {
 		t.Error("magic number doesn't exist")
+	}
+
+	decompressed, err := p.Decompress(nil, compressed)
+	if err != nil {
+		t.Error("failed to decompress")
+	}
+	if len(decompressed) != 0 {
+		t.Error("content was not decompressed correctly")
 	}
 }
 
@@ -213,6 +221,31 @@ func TestBulkCompressAndDecompressInReverseOrder(t *testing.T) {
 		if bytes.Compare(payloads[i], uncompressed) != 0 {
 			t.Error("uncompressed payload didn't match")
 		}
+	}
+}
+
+func TestBulkDecompressHighlyCompressable(t *testing.T) {
+	p := newBulkProcessor(t, dict, BestSpeed)
+
+	// Generate a big payload
+	msgSize := 10 * 1000 * 1000 // 10 MiB
+	msg := make([]byte, msgSize)
+	compressed, err := Compress(nil, msg)
+	if err != nil {
+		t.Error("failed to compress")
+	}
+
+	// Regular decompression would trigger zipbomb prevention
+	_, err = p.Decompress(nil, compressed)
+	if !IsDstSizeTooSmallError(err) {
+		t.Error("expected too small error")
+	}
+
+	// Passing an output should suceed the decompression
+	dst := make([]byte, 10*msgSize)
+	_, err = p.Decompress(dst, compressed)
+	if err != nil {
+		t.Errorf("failed to decompress: %s", err)
 	}
 }
 
