@@ -216,7 +216,7 @@ func TestBulkCompressAndDecompressInReverseOrder(t *testing.T) {
 	}
 }
 
-func TestDecompressHighlyCompressable(t *testing.T) {
+func TestBulkDecompressHighlyCompressable(t *testing.T) {
 	p := newBulkProcessor(t, dict, BestSpeed)
 
 	// Generate a big payload
