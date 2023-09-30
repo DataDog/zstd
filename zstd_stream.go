@@ -486,7 +486,7 @@ func (r *reader) Read(p []byte) (int, error) {
 				n, err = r.underlyingReader.Read(src[r.compressionLeft:])
 			}
 			if err != nil && err != io.EOF { // Handle underlying reader errors first
-				return 0, fmt.Errorf("failed to read from underlying reader: %s", err)
+				return 0, fmt.Errorf("failed to read from underlying reader: %w", err)
 			}
 			if n == 0 {
 				// Ideally, we'd return with ErrUnexpectedEOF in all cases where the stream was unexpectedly EOF'd
@@ -524,7 +524,7 @@ func (r *reader) Read(p []byte) (int, error) {
 		// Keep src here even though we reuse later, the code might be deleted at some point
 		runtime.KeepAlive(src)
 		if err := getError(retCode); err != nil {
-			return 0, fmt.Errorf("failed to decompress: %s", err)
+			return 0, fmt.Errorf("failed to decompress: %w", err)
 		}
 
 		// Put everything in buffer
