@@ -341,6 +341,34 @@ func TestSmallPayload(t *testing.T) {
 
 }
 
+func BenchmarkCompress(b *testing.B) {
+	data := make([]byte, 1024)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	dest := make([]byte, CompressBound(len(data)))
+	b.Run("cgo", func(b *testing.B) {
+		b.SetBytes(int64(len(data)))
+		ctx := NewCtx()
+		for i := 0; i < b.N; i++ {
+			_, err := ctx.CompressLevel(dest, data, 3)
+			if err != nil {
+				b.Fail()
+			}
+		}
+	})
+	b.Run("direct", func(b *testing.B) {
+		b.SetBytes(int64(len(data)))
+		ctx := NewCtx()
+		for i := 0; i < b.N; i++ {
+			_, err := ctx.CompressLevelDirect(dest, data, 3)
+			if err != nil {
+				b.Fail()
+			}
+		}
+	})
+}
+
 func BenchmarkCompression(b *testing.B) {
 	if raw == nil {
 		b.Fatal(ErrNoPayloadEnv)
