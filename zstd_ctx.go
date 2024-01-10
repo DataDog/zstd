@@ -1,7 +1,7 @@
 package zstd
 
 /*
-//#cgo CFLAGS: -O3
+#cgo CFLAGS: -O3
 #include "zstd.h"
 */
 import "C"
