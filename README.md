@@ -14,7 +14,7 @@ The current headers and C files are from *v1.5.6* (Commit
 There are two main APIs:
 
 * simple Compress/Decompress
-* streaming API (io.Reader/io.Writer)
+* streaming API (io.Reader/io.Writer)fr
 
 The compress/decompress APIs mirror that of lz4, while the streaming API was
 designed to be a drop-in replacement for zlib.
