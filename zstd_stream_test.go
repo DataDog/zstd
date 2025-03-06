@@ -490,7 +490,7 @@ func TestStreamMaxWindowSize(t *testing.T) {
 			// Normal decompression should work
 			t.Run("NormalDecompression", func(t *testing.T) {
 				r1 := NewReader(bytes.NewReader(compressedData))
-				decompressed1, err := io.ReadAll(r1)
+				decompressed1, err := ioutil.ReadAll(r1)
 				failOnError(t, "ReadAll error (normal)", err)
 				if !bytes.Equal(decompressed1, []byte(data)) {
 					t.Fatal("Regular decompression failed to match original data")
@@ -501,7 +501,7 @@ func TestStreamMaxWindowSize(t *testing.T) {
 			// Decompression with max window size > original window should work
 			t.Run("LargerMaxWindowSize", func(t *testing.T) {
 				r2 := NewReaderDictMaxWindowSize(bytes.NewReader(compressedData), tc.dict, 1<<18)
-				decompressed2, err := io.ReadAll(r2)
+				decompressed2, err := ioutil.ReadAll(r2)
 				failOnError(t, "ReadAll error (large max window)", err)
 				if !bytes.Equal(decompressed2, []byte(data)) {
 					t.Fatalf("Decompression with larger max window failed to match original data - got len=%d, want len=%d",
@@ -514,7 +514,7 @@ func TestStreamMaxWindowSize(t *testing.T) {
 			t.Run("SmallerMaxWindowSize", func(t *testing.T) {
 				// We set it to 64KB, less than the 128KB used for compression
 				r3 := NewReaderDictMaxWindowSize(bytes.NewReader(compressedData), tc.dict, 1<<16)
-				_, err = io.ReadAll(r3)
+				_, err = ioutil.ReadAll(r3)
 				if err == nil {
 					t.Fatal("Expected error when max window size is too small, got nil")
 				}
