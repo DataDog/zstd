@@ -1,6 +1,7 @@
 package zstd
 
 /*
+#define ZSTD_STATIC_LINKING_ONLY 1
 #include "zstd.h"
 
 typedef struct compressStream2_result_s {
@@ -65,6 +66,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/bits"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -117,11 +119,22 @@ func NewWriterLevel(w io.Writer, level int) *Writer {
 // compress with.  If the dictionary is empty or nil it is ignored. The dictionary
 // should not be modified until the writer is closed.
 func NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer {
+	return NewWriterLevelDictWindowSize(w, level, dict, 0)
+}
+
+// NewWriterLevelDictWindowSize is like NewWriterLevelDict but allows configuring
+// the window size. windowSize is specified in bytes and will be converted to a windowLog
+// parameter (log2 of the window size). If windowSize is 0, the default window size is used.
+// The windowSize must be a power of 2 between 1KB and 8MB on 32-bit platforms
+// or 1KB and 2GB on 64-bit platforms.
+// A larger window size allows for better compression ratios for repetitive data
+// but requires more memory during compression and decompression.
+func NewWriterLevelDictWindowSize(w io.Writer, level int, dict []byte, windowSize int) *Writer {
 	var err error
 	ctx := C.ZSTD_createCStream()
 
 	// Load dictionnary if any
-	if dict != nil {
+	if len(dict) > 0 {
 		err = getError(int(C.ZSTD_CCtx_loadDictionary(ctx,
 			unsafe.Pointer(&dict[0]),
 			C.size_t(len(dict)),
@@ -131,6 +144,17 @@ func NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer {
 	if err == nil {
 		// Only set level if the ctx is not in error already
 		err = getError(int(C.ZSTD_CCtx_setParameter(ctx, C.ZSTD_c_compressionLevel, C.int(level))))
+	}
+
+	if err == nil && windowSize > 0 {
+		// Only set windowLog if windowSize is a power of 2
+		if windowSize&(windowSize-1) == 0 {
+			// Convert windowSize to windowLog using bits.TrailingZeros
+			windowLog := bits.TrailingZeros(uint(windowSize))
+			err = getError(int(C.ZSTD_CCtx_setParameter(ctx, C.ZSTD_c_windowLog, C.int(windowLog))))
+		} else {
+			err = fmt.Errorf("window size must be a power of 2")
+		}
 	}
 
 	return &Writer{
@@ -373,8 +397,18 @@ func NewReader(r io.Reader) io.ReadCloser {
 // NewReaderDict is like NewReader but uses a preset dictionary.  NewReaderDict
 // ignores the dictionary if it is nil.
 func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
+	return NewReaderDictMaxWindowSize(r, dict, 0)
+}
+
+// NewReaderDictMaxWindowSize is like NewReaderDict but allows configuring the maximum
+// window size for decompression. maxWindowSize is specified in bytes, not as a log value.
+// If maxWindowSize is 0, the default window size limit is used.
+// Setting a maximum window size protects against allocating too much memory for
+// decompression (potential attack scenario) when processing untrusted inputs.
+func NewReaderDictMaxWindowSize(r io.Reader, dict []byte, maxWindowSize int) io.ReadCloser {
 	var err error
 	ctx := C.ZSTD_createDStream()
+
 	if len(dict) == 0 {
 		err = getError(int(C.ZSTD_initDStream(ctx)))
 	} else {
@@ -387,6 +421,11 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 				C.size_t(len(dict)))))
 		}
 	}
+
+	if err == nil && maxWindowSize > 0 {
+		err = getError(int(C.ZSTD_DCtx_setMaxWindowSize(ctx, C.size_t(maxWindowSize))))
+	}
+
 	compressionBufferP := cPool.Get().(*[]byte)
 	decompressionBufferP := dPool.Get().(*[]byte)
 	return &reader{

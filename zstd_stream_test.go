@@ -414,6 +414,119 @@ func TestStreamSetNbWorkers(t *testing.T) {
 	testCompressionDecompression(t, nil, []byte(s), nbWorkers)
 }
 
+func TestStreamWindowSize(t *testing.T) {
+	dict := []byte("dictdata_for_compression_test")
+	data := []byte("hello world")
+	testCases := []struct {
+		name string
+		dict []byte
+	}{
+		{"NilDict", nil},
+		{"ValidDict", dict},
+		{"EmptyDict", []byte{}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Test with valid window size (power of 2)
+			t.Run("ValidWindowSize", func(t *testing.T) {
+				var buf bytes.Buffer
+				w := NewWriterLevelDictWindowSize(&buf, DefaultCompression, tc.dict, 1<<17) // 128 KB
+
+				_, err := w.Write(data)
+				failOnError(t, "Write error", err)
+				failOnError(t, "Close error", w.Close())
+
+				// Test decoding
+				r := NewReader(&buf)
+				decompressed, err := ioutil.ReadAll(r)
+				failOnError(t, "ReadAll error", err)
+				if !bytes.Equal(decompressed, data) {
+					t.Fatalf("got %q; want %q", decompressed, data)
+				}
+				failOnError(t, "Reader close error", r.Close())
+			})
+
+			// Test with invalid window size (not a power of 2)
+			t.Run("InvalidWindowSize", func(t *testing.T) {
+				var buf bytes.Buffer
+				w := NewWriterLevelDictWindowSize(&buf, DefaultCompression, tc.dict, 123456)
+				_, err := w.Write(data)
+				if err == nil {
+					t.Fatal("Expected error for invalid window size, got nil")
+				}
+				if !strings.Contains(err.Error(), "window size must be a power of 2") {
+					t.Fatalf("Unexpected error message: %v", err)
+				}
+			})
+		})
+	}
+}
+
+func TestStreamMaxWindowSize(t *testing.T) {
+	dict := []byte("dictdata_for_compression_test")
+	testCases := []struct {
+		name string
+		dict []byte
+	}{
+		{"NilDict", nil},
+		{"ValidDict", dict},
+		{"EmptyDict", []byte{}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create compressed data with a 128KB window size
+			data := strings.Repeat("abcdefghijklmnopqrstuvwxyz", 1000)
+			var buf bytes.Buffer
+			w := NewWriterLevelDictWindowSize(&buf, DefaultCompression, tc.dict, 1<<17) // 128 KB
+
+			_, err := w.Write([]byte(data))
+			failOnError(t, "Write error", err)
+			failOnError(t, "Flush error", w.Flush())
+			failOnError(t, "Close error", w.Close())
+			compressedData := buf.Bytes()
+
+			// Normal decompression should work
+			t.Run("NormalDecompression", func(t *testing.T) {
+				r1 := NewReader(bytes.NewReader(compressedData))
+				decompressed1, err := io.ReadAll(r1)
+				failOnError(t, "ReadAll error (normal)", err)
+				if !bytes.Equal(decompressed1, []byte(data)) {
+					t.Fatal("Regular decompression failed to match original data")
+				}
+				failOnError(t, "Reader close error", r1.Close())
+			})
+
+			// Decompression with max window size > original window should work
+			t.Run("LargerMaxWindowSize", func(t *testing.T) {
+				r2 := NewReaderDictMaxWindowSize(bytes.NewReader(compressedData), tc.dict, 1<<18)
+				decompressed2, err := io.ReadAll(r2)
+				failOnError(t, "ReadAll error (large max window)", err)
+				if !bytes.Equal(decompressed2, []byte(data)) {
+					t.Fatalf("Decompression with larger max window failed to match original data - got len=%d, want len=%d",
+						len(decompressed2), len(data))
+				}
+				failOnError(t, "Reader close error", r2.Close())
+			})
+
+			// Decompression with max window size < original window should fail
+			t.Run("SmallerMaxWindowSize", func(t *testing.T) {
+				// We set it to 64KB, less than the 128KB used for compression
+				r3 := NewReaderDictMaxWindowSize(bytes.NewReader(compressedData), tc.dict, 1<<16)
+				_, err = io.ReadAll(r3)
+				if err == nil {
+					t.Fatal("Expected error when max window size is too small, got nil")
+				}
+				if !strings.Contains(err.Error(), "Frame requires too much memory") {
+					t.Fatalf("Unexpected error message: %v", err)
+				}
+				r3.Close()
+			})
+		})
+	}
+}
+
 func BenchmarkStreamCompression(b *testing.B) {
 	if raw == nil {
 		b.Fatal(ErrNoPayloadEnv)
