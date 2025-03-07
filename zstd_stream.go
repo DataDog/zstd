@@ -123,9 +123,8 @@ func NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer {
 }
 
 // NewWriterLevelDictWindowSize is like NewWriterLevelDict but allows configuring
-// the window size. windowSize is specified in bytes and will be converted to a windowLog
-// parameter (log2 of the window size). If windowSize is 0, the default window size is used.
-// The windowSize must be a power of 2 between 1KB and 8MB on 32-bit platforms
+// the window size, specificed in bytes. If windowSize is 0, the default window size is used.
+// The windowSize must be a power of 2 between 1KB and 1GB on 32-bit platforms,
 // or 1KB and 2GB on 64-bit platforms.
 // A larger window size allows for better compression ratios for repetitive data
 // but requires more memory during compression and decompression.
@@ -401,14 +400,13 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 }
 
 // NewReaderDictMaxWindowSize is like NewReaderDict but allows configuring the maximum
-// window size for decompression. maxWindowSize is specified in bytes, not as a log value.
+// window size for decompression, specified in bytes.
 // If maxWindowSize is 0, the default window size limit is used.
 // Setting a maximum window size protects against allocating too much memory for
 // decompression (potential attack scenario) when processing untrusted inputs.
 func NewReaderDictMaxWindowSize(r io.Reader, dict []byte, maxWindowSize int) io.ReadCloser {
 	var err error
 	ctx := C.ZSTD_createDStream()
-
 	if len(dict) == 0 {
 		err = getError(int(C.ZSTD_initDStream(ctx)))
 	} else {
