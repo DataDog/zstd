@@ -415,8 +415,8 @@ func TestStreamSetNbWorkers(t *testing.T) {
 }
 
 func TestStreamWindowSize(t *testing.T) {
-	dict := []byte("dictdata_for_compression_test")
-	data := []byte("hello world")
+	dict := []byte(strings.Repeat("dictdata_for_compression_test", 1000))
+	data := []byte(strings.Repeat("abcdefghijklmnopqrstuvwxyz", 10000))
 	testCases := []struct {
 		name string
 		dict []byte
@@ -464,7 +464,7 @@ func TestStreamWindowSize(t *testing.T) {
 }
 
 func TestStreamMaxWindowSize(t *testing.T) {
-	dict := []byte("dictdata_for_compression_test")
+	dict := []byte(strings.Repeat("dictdata_for_compression_test", 1000))
 	testCases := []struct {
 		name string
 		dict []byte
@@ -477,11 +477,11 @@ func TestStreamMaxWindowSize(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create compressed data with a 128KB window size
-			data := strings.Repeat("abcdefghijklmnopqrstuvwxyz", 1000)
+			data := []byte(strings.Repeat("abcdefghijklmnopqrstuvwxyz", 10000))
 			var buf bytes.Buffer
 			w := NewWriterLevelDictWindowSize(&buf, DefaultCompression, tc.dict, 1<<17) // 128 KB
 
-			_, err := w.Write([]byte(data))
+			_, err := w.Write(data)
 			failOnError(t, "Write error", err)
 			failOnError(t, "Flush error", w.Flush())
 			failOnError(t, "Close error", w.Close())
@@ -492,7 +492,7 @@ func TestStreamMaxWindowSize(t *testing.T) {
 				r1 := NewReader(bytes.NewReader(compressedData))
 				decompressed1, err := ioutil.ReadAll(r1)
 				failOnError(t, "ReadAll error (normal)", err)
-				if !bytes.Equal(decompressed1, []byte(data)) {
+				if !bytes.Equal(decompressed1, data) {
 					t.Fatal("Regular decompression failed to match original data")
 				}
 				failOnError(t, "Reader close error", r1.Close())
@@ -503,7 +503,7 @@ func TestStreamMaxWindowSize(t *testing.T) {
 				r2 := NewReaderDictMaxWindowSize(bytes.NewReader(compressedData), tc.dict, 1<<18)
 				decompressed2, err := ioutil.ReadAll(r2)
 				failOnError(t, "ReadAll error (large max window)", err)
-				if !bytes.Equal(decompressed2, []byte(data)) {
+				if !bytes.Equal(decompressed2, data) {
 					t.Fatalf("Decompression with larger max window failed to match original data - got len=%d, want len=%d",
 						len(decompressed2), len(data))
 				}
@@ -512,6 +512,10 @@ func TestStreamMaxWindowSize(t *testing.T) {
 
 			// Decompression with max window size < original window should fail
 			t.Run("SmallerMaxWindowSize", func(t *testing.T) {
+				// workaround for regression when setting window size & using dictionary (facebook/zstd#2442)
+				if zstdVersion < 10409 && zstdVersion > 10405 && len(tc.dict) > 0 {
+					t.Skip("Skipping: Zstd v1.4.5 - v1.4.9 won't set window size when streaming with dictionary")
+				}
 				// We set it to 64KB, less than the 128KB used for compression
 				r3 := NewReaderDictMaxWindowSize(bytes.NewReader(compressedData), tc.dict, 1<<16)
 				_, err = ioutil.ReadAll(r3)
