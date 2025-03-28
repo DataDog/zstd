@@ -6,8 +6,8 @@
 
 [C Zstd Homepage](https://github.com/facebook/zstd)
 
-The current headers and C files are from *v1.5.6* (Commit
-[794ea1b](https://github.com/facebook/zstd/releases/tag/v1.5.6)).
+The current headers and C files are from *v1.5.7* (Commit
+[f8745da](https://github.com/facebook/zstd/releases/tag/v1.5.7)).
 
 ## Usage
 
