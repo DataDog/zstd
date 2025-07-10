@@ -380,3 +380,39 @@ func BenchmarkDecompression(b *testing.B) {
 		b.StartTimer()
 	}
 }
+
+// TestDecompressSizeHintLimit verifies that decompressSizeHint correctly applies
+// the buffer size limit when calculating decompression buffer hints.
+func TestDecompressSizeHintLimit(t *testing.T) {
+	tests := []struct {
+		name        string
+		inputSize   int
+		description string
+		wantHint    int
+	}{
+		{
+			name:        "small_input",
+			inputSize:   10,
+			description: "Input size where 50x multiplier stays below buffer limit",
+			wantHint:    500, // 50 * 10 = 500 < 1000000
+		},
+		{
+			name:        "very_large_input",
+			inputSize:   2 * decompressSizeBufferLimit,
+			description: "Very large input that would create excessive buffer without limit",
+			wantHint:    decompressSizeBufferLimit,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := make([]byte, tt.inputSize)
+			got := decompressSizeHint(input)
+
+			if got != tt.wantHint {
+				t.Fatal("decompressSizeHint() with input size", tt.inputSize, "got hint size", got, "want", tt.wantHint)
+			}
+
+		})
+	}
+}

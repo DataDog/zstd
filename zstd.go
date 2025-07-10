@@ -62,7 +62,7 @@ func cCompressBound(srcSize int) int {
 func decompressSizeHint(src []byte) int {
 	// 1 MB or 50x input size
 	upperBound := 50 * len(src)
-	if upperBound < decompressSizeBufferLimit {
+	if upperBound > decompressSizeBufferLimit {
 		upperBound = decompressSizeBufferLimit
 	}
 
