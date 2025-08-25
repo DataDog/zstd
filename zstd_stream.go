@@ -355,6 +355,7 @@ type reader struct {
 	decompressionBuffer []byte
 	decompOff           int
 	decompSize          int
+	remainingBytes      int
 	dict                []byte
 	firstError          error
 	recommendedSrcSize  int
@@ -447,12 +448,12 @@ func (r *reader) Read(p []byte) (int, error) {
 	// at least one zstd block, so that we don't block if the
 	// other end has flushed a block.
 	for {
-		// - If the last decompression didn't entirely fill the decompression buffer,
-		//   zstd flushed all it could, and needs new data. In that case, do 1 Read.
-		// - If the last decompression did entirely fill the decompression buffer,
-		//   it might have needed more room to decompress the input. In that case,
-		//   don't do any unnecessary Read that might block.
-		needsData := r.decompSize < len(r.decompressionBuffer)
+		// Do a read only when zstd doesn't have any pending output. When zstd could
+		// not finish writing output, it will keep input buffer non-empty.
+		// https://github.com/facebook/zstd/commit/b3060f7a9ea3555c6045606be58dddc86bbb099b
+		// > when all compressed frame is consumed, it means decompression is completed,
+		// > with regenerated data fully flushed.
+		needsData := r.compressionLeft == 0
 
 		var src []byte
 		if !needsData {
@@ -468,16 +469,16 @@ func (r *reader) Read(p []byte) (int, error) {
 			if err != nil && err != io.EOF { // Handle underlying reader errors first
 				return 0, fmt.Errorf("failed to read from underlying reader: %w", err)
 			}
-			if n == 0 {
-				// Ideally, we'd return with ErrUnexpectedEOF in all cases where the stream was unexpectedly EOF'd
-				// during a block or frame, i.e. when there are incomplete, pending compression data.
-				// However, it's hard to detect those cases with zstd. Namely, there is no way to know the size of
-				// the current buffered compression data in the zstd stream internal buffers.
-				// Best effort: throw ErrUnexpectedEOF if we still have some pending buffered compression data that
-				// zstd doesn't want to accept.
-				// If we don't have any buffered compression data but zstd still has some in its internal buffers,
-				// we will return with EOF instead.
-				if r.compressionLeft > 0 {
+
+			// Only return EOF when we have no more compressed data to
+			// decompress and no more input is coming.
+			// From ZSTD_decompressStream docs:
+			// If `input.pos < input.size`, some input has not been consumed.
+			// It's up to the caller to present again remaining data.
+			if n == 0 && r.compressionLeft == 0 {
+				// Last call to ZSTD_decompressStream indicated that
+				// it needs more data, but we're not getting any.
+				if r.remainingBytes > 0 {
 					return 0, io.ErrUnexpectedEOF
 				}
 				return 0, io.EOF
@@ -516,7 +517,7 @@ func (r *reader) Read(p []byte) (int, error) {
 		r.compressionLeft = len(src) - bytesConsumed
 		r.decompSize = int(r.resultBuffer.bytes_written)
 		r.decompOff = copy(p, r.decompressionBuffer[:r.decompSize])
-
+		r.remainingBytes = retCode
 		// Resize buffers
 		nsize := retCode // Hint for next src buffer size
 		if nsize <= 0 {

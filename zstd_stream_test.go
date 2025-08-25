@@ -460,3 +460,53 @@ func BenchmarkStreamDecompression(b *testing.B) {
 		r.Close()
 	}
 }
+
+func TestStreamConcat(t *testing.T) {
+	totalSize := 64
+	r := NewRandBytes()
+	rawData1 := make([]byte, totalSize)
+	r.Read(rawData1)
+	rawData2 := make([]byte, totalSize)
+	r.Read(rawData2)
+
+	expected := make([]byte, totalSize * 2)
+	copy(expected, rawData1)
+	copy(expected[totalSize:], rawData2)
+
+	compressed1, _ := Compress(nil, rawData1)
+	compressed2, _ := Compress(nil, rawData2)
+
+	combined := make([]byte, len(compressed1) + len(compressed2))
+	copy(combined, compressed1)
+	copy(combined[len(compressed1):], compressed2)
+
+	decompressed, _ := Decompress(nil, combined)
+	if !bytes.Equal(decompressed, expected) {
+		t.Error("Decompress should handle concatenated streams")
+	}
+
+	reader := NewReader(bytes.NewBuffer(combined))
+	decompressed, err := ioutil.ReadAll(reader)
+	failOnError(t, "stream decompress failed", err)
+
+	if !bytes.Equal(decompressed, expected) {
+		t.Error("stream decompress failed to produce expecteed bytes")
+	}
+}
+
+func TestUnexpectedEOF(t *testing.T) {
+	totalSize := 64
+	r := NewRandBytes()
+	rawData := make([]byte, totalSize)
+	r.Read(rawData)
+
+	compressed, _ := Compress(nil, rawData)
+	compressed = compressed[:len(compressed)-1]
+
+	reader := NewReader(bytes.NewBuffer(compressed))
+	_, err := ioutil.ReadAll(reader)
+
+	if err != io.ErrUnexpectedEOF {
+		t.Error("stream decompress failed to detect unexpected end of input")
+	}
+}
