@@ -37,6 +37,8 @@ const (
 	decompressSizeBufferLimit = 1000 * 1000
 
 	zstdFrameHeaderSizeMin = 2 // From zstd.h. Since it's experimental API, hardcoding it
+
+	zstdVersion = C.ZSTD_VERSION_NUMBER
 )
 
 // CompressBound returns the worst case size needed for a destination buffer,

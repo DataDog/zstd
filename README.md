@@ -71,6 +71,7 @@ Decompress(dst, src []byte) ([]byte, error)
 NewWriter(w io.Writer) *Writer
 NewWriterLevel(w io.Writer, level int) *Writer
 NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer
+NewWriterLevelDictWindowSize(w io.Writer, level int, dict []byte, windowSize int) *Writer
 
 // Write compresses the input data and write it to the underlying writer
 (w *Writer) Write(p []byte) (int, error)
@@ -89,6 +90,7 @@ NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer
 // to call Close, which frees up C objects.
 NewReader(r io.Reader) io.ReadCloser
 NewReaderDict(r io.Reader, dict []byte) io.ReadCloser
+NewReaderDictMaxWindowSize(r io.Reader, dict []byte, maxWindowSize int) io.ReadCloser
 ```
 
 ### Benchmarks (benchmarked with v0.5.0)
