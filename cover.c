@@ -36,6 +36,30 @@
 #include <string.h> /* memset */
 #include <time.h>   /* clock */
 
+#if defined(_GNU_SOURCE) && !defined(__GLIBC__)
+typedef int (*COVER_qsort_r_compar)(const void *, const void *, void *);
+
+typedef struct {
+  COVER_qsort_r_compar compar;
+  void *arg;
+} COVER_qsort_r_ctx_t;
+
+static __thread COVER_qsort_r_ctx_t g_cover_qsort_r_ctx;
+
+static int COVER_qsort_r_proxy(const void *a, const void *b) {
+  return g_cover_qsort_r_ctx.compar(a, b, g_cover_qsort_r_ctx.arg);
+}
+
+static void COVER_qsort_r(void *base, size_t nmemb, size_t size,
+                          COVER_qsort_r_compar compar, void *arg) {
+  g_cover_qsort_r_ctx.compar = compar;
+  g_cover_qsort_r_ctx.arg = arg;
+  qsort(base, nmemb, size, COVER_qsort_r_proxy);
+}
+
+#define qsort_r COVER_qsort_r
+#endif
+
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
