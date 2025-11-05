@@ -61,6 +61,49 @@ CompressLevel(dst, src []byte, level int) ([]byte, error)
 Decompress(dst, src []byte) ([]byte, error)
 ```
 
+### Dictionary API
+
+Zstd supports dictionary compression, which can significantly improve compression ratios for small, similar payloads:
+
+```go
+// Train a dictionary from samples
+samples := [][]byte{ /* your training data */ }
+dict, err := zstd.TrainFromBuffer(samples, dictSize)
+
+// Create digested dictionaries for better performance
+cdict, err := zstd.NewCDict(dict, compressionLevel)
+defer cdict.Close()
+
+ddict, err := zstd.NewDDict(dict)
+defer ddict.Close()
+
+// Compress/decompress with dictionary
+compressed, err := cdict.Compress(nil, data)
+decompressed, err := ddict.Decompress(nil, compressed)
+```
+
+Advanced dictionary training with COVER and fastCover algorithms:
+
+```go
+// COVER algorithm with custom parameters
+params := zstd.CoverParams{
+    K: 32,  // Segment size
+    D: 8,   // dmer size
+}
+dict, err := zstd.TrainFromBufferCover(samples, dictSize, params)
+
+// fastCover with optimization
+params := zstd.FastCoverParams{
+    K: 0,  // Will be optimized
+    D: 0,  // Will be optimized
+    F: 20,
+    Steps: 4,
+}
+dict, optimized, err := zstd.OptimizeTrainFromBufferFastCover(samples, dictSize, params)
+```
+
+See [examples](zdict_example_test.go) for more usage patterns.
+
 ### Stream API
 
 ```go
