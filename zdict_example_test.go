@@ -90,7 +90,7 @@ func ExampleDDict_Decompress() {
 }
 
 // ExampleDictionary_compressionComparison demonstrates the size improvement when using a dictionary
-func ExampleDictionary_compressionComparison() {
+func Example_compressionComparison() {
 	// Train dictionary from samples
 	samples := make([][]byte, 50)
 	for i := 0; i < 50; i++ {
@@ -216,4 +216,68 @@ func ExampleGetDictID() {
 		fmt.Println("Valid dictionary ID found")
 	}
 	// Output: Valid dictionary ID found
+}
+
+// ExampleDictionary_jsonArray demonstrates training on individual JSON records
+// and then compressing a full JSON array containing many similar records
+func Example_jsonArray() {
+	// Simulate individual JSON records (like from a database or API)
+	records := make([]string, 100)
+	for i := 0; i < 100; i++ {
+		records[i] = fmt.Sprintf(`{"user_id":%d,"action":"page_view","timestamp":"2024-01-01T%02d:00:00Z","session":"abc123"}`, i, i%24)
+	}
+
+	// Step 1: Train dictionary on INDIVIDUAL records
+	samples := make([][]byte, len(records))
+	for i, record := range records {
+		samples[i] = []byte(record)
+	}
+	dict, _ := zstd.TrainFromBuffer(samples, 4096)
+
+	// Step 2: Create the full JSON array with all records
+	// In practice, this would be json.Marshal(recordsSlice)
+	var fullArray string
+	fullArray = "["
+	for i, record := range records {
+		if i > 0 {
+			fullArray += ","
+		}
+		fullArray += record
+	}
+	fullArray += "]"
+	fullArrayBytes := []byte(fullArray)
+
+	// Step 3: Compress the ENTIRE array with the dictionary
+	cdict, _ := zstd.NewCDict(dict, zstd.DefaultCompression)
+	defer cdict.Close()
+	compressedArray, _ := cdict.Compress(nil, fullArrayBytes)
+
+	// Compare with no dictionary
+	compressedNoDict, _ := zstd.Compress(nil, fullArrayBytes)
+
+	// Show results
+	fmt.Printf("Individual record size: ~%d bytes\n", len(records[0]))
+	fmt.Printf("Full array size: %d bytes\n", len(fullArrayBytes))
+	fmt.Printf("Compressed without dict: %d bytes (%.1f%% of original)\n",
+		len(compressedNoDict), float64(len(compressedNoDict))/float64(len(fullArrayBytes))*100)
+	fmt.Printf("Compressed with dict: %d bytes (%.1f%% of original)\n",
+		len(compressedArray), float64(len(compressedArray))/float64(len(fullArrayBytes))*100)
+	fmt.Printf("Dictionary saves: %d bytes\n", len(compressedNoDict)-len(compressedArray))
+
+	// Step 4: Decompress and verify
+	ddict, _ := zstd.NewDDict(dict)
+	defer ddict.Close()
+	decompressed, _ := ddict.Decompress(nil, compressedArray)
+
+	if string(decompressed) == fullArray {
+		fmt.Println("Round-trip successful!")
+	}
+
+	// Output:
+	// Individual record size: ~88 bytes
+	// Full array size: 8991 bytes
+	// Compressed without dict: 384 bytes (4.3% of original)
+	// Compressed with dict: 327 bytes (3.6% of original)
+	// Dictionary saves: 57 bytes
+	// Round-trip successful!
 }
