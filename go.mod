@@ -1,3 +1,3 @@
 module github.com/DataDog/zstd
 
-go 1.14
+go 1.25.7
