@@ -494,6 +494,85 @@ func TestStreamConcat(t *testing.T) {
 	}
 }
 
+func TestWriterCloseFreesContextOnFirstError(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+
+	w.firstError = errors.New("simulated zstd error")
+
+	err := w.Close()
+	if err == nil {
+		t.Fatal("Close() should have returned the firstError")
+	}
+
+	if w.ctx != nil {
+		t.Fatal("Close() leaked: ctx must be freed and nil'd even when firstError is set")
+	}
+}
+
+func TestWriterDoubleCloseIsSafe(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+
+	_, err := w.Write([]byte("hello world"))
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+
+	err = w.Close()
+	if err != nil {
+		t.Fatalf("First Close() failed: %v", err)
+	}
+
+	if w.ctx != nil {
+		t.Fatal("First Close() must nil ctx to prevent use-after-free on double-close")
+	}
+
+	// Second close should be a safe no-op
+	err = w.Close()
+	if err != nil {
+		t.Fatalf("Second Close() should return nil, got: %v", err)
+	}
+}
+
+func TestWriterCloseNilsContextOnUnderlyingWriterError(t *testing.T) {
+	var bw bytes.Buffer
+	cw := &closeableWriter{w: &bw}
+	w := NewWriter(cw)
+
+	_, err := w.Write([]byte("hello world"))
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+
+	cw.Close() // make the underlying writer fail
+
+	err = w.Close()
+	if err == nil {
+		t.Fatal("Close() should have returned an error from the underlying writer")
+	}
+
+	if w.ctx != nil {
+		t.Fatal("Close() must nil ctx after freeing on underlying-writer error")
+	}
+}
+
+func TestReaderCloseFreesContextOnFirstError(t *testing.T) {
+	r := NewReader(bytes.NewReader([]byte{}))
+	rr := r.(*reader)
+
+	rr.firstError = errors.New("simulated construction error")
+
+	err := rr.Close()
+	if err == nil {
+		t.Fatal("Close() should have returned the firstError")
+	}
+
+	if rr.ctx != nil {
+		t.Fatal("Close() leaked: ctx must be freed and nil'd even when firstError is set")
+	}
+}
+
 func TestUnexpectedEOF(t *testing.T) {
 	totalSize := 64
 	r := NewRandBytes()
