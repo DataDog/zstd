@@ -100,4 +100,4 @@ jobs:
           docker run --rm \
             -v "$GITHUB_WORKSPACE":/workspace -w /workspace \
             32bit/ubuntu:16.04 \
-            linux32 --32bit i386 -R bash ./travis_test_32.sh
+            linux32 --32bit i386 bash ./travis_test_32.sh
