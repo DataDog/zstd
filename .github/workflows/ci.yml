@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "1.x"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-test:
+    name: golang-${{ matrix.go-version }}${{ matrix.external-libzstd && '-external-libzstd' || '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ["1.24", "1.25", "1.26"]
+        external-libzstd: [false, true]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Install libzstd-dev
+        if: ${{ matrix.external-libzstd }}
+        run: sudo apt-get update && sudo apt-get install -y libzstd-dev
+      - name: Download payload
+        run: |
+          wget https://github.com/DataDog/zstd/files/2246767/mr.zip
+          unzip mr.zip
+      - name: Build
+        run: go build
+      - name: Test
+        run: PAYLOAD="$(pwd)/mr" go test -v
+      - name: Bench
+        run: PAYLOAD="$(pwd)/mr" go test -bench .
+
+  efence:
+    name: golang-efence
+    # CircleCI ran this on resource_class: xlarge (8 vCPU). GitHub-hosted
+    # ubuntu-latest is 4 vCPU / 16 GB; if memory pressure or runtime becomes
+    # an issue under GODEBUG=efence=1, switch to a larger runner label.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
+      - name: Download payload
+        run: |
+          wget https://github.com/DataDog/zstd/files/2246767/mr.zip
+          unzip mr.zip
+      - name: Build
+        run: go build
+      - name: Test (efence)
+        env:
+          GODEBUG: efence=1
+        run: PAYLOAD="$(pwd)/mr" go test -v
+
+  efence-external-libzstd:
+    name: golang-efence-external-libzstd
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
+      - name: Install libzstd-dev
+        run: sudo apt-get update && sudo apt-get install -y libzstd-dev
+      - name: Download payload
+        run: |
+          wget https://github.com/DataDog/zstd/files/2246767/mr.zip
+          unzip mr.zip
+      - name: Build
+        run: go build -tags external_libzstd
+      - name: Test (efence)
+        env:
+          GODEBUG: efence=1
+        run: PAYLOAD="$(pwd)/mr" go test -tags external_libzstd -v
+
+  i386:
+    name: golang-i386
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: "386"
+      CGO_ENABLED: "1"
+      CC: "gcc -m32"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
+      - name: Install 32-bit toolchain
+        run: sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386
+      - name: Download payload
+        run: |
+          wget https://github.com/DataDog/zstd/files/2246767/mr.zip
+          unzip mr.zip
+      - name: Build (i386)
+        run: go build
+      - name: Test (i386)
+        env:
+          DISABLE_BIG_TESTS: "1"
+          PAYLOAD: ${{ github.workspace }}/mr
+        run: go test -v
