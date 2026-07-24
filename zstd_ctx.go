@@ -118,8 +118,10 @@ func (c *ctx) Decompress(dst, src []byte) ([]byte, error) {
 		dst = dst[:cap(dst)]
 	case !foundHint && cap(dst) > 0:
 		dst = dst[:cap(dst)]
-	default:
+	case foundHint:
 		dst = make([]byte, hint)
+	default:
+		return growDecompress(src, c.DecompressInto)
 	}
 
 	written, err := c.DecompressInto(dst, src)

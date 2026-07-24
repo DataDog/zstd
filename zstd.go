@@ -145,14 +145,18 @@ func Decompress(dst, src []byte) ([]byte, error) {
 	hint, foundHint := decompressSizeHint(src)
 
 	// Reuse the caller buffer when it is large enough, or when the size is
-	// unknown (the hint is then only an upper bound); otherwise allocate the hint.
+	// unknown (the hint is then only an upper bound). Otherwise size from the
+	// hint, or grow from a small buffer when the size is unknown and none was
+	// supplied (see growDecompress).
 	switch {
 	case cap(dst) >= hint:
 		dst = dst[:cap(dst)]
 	case !foundHint && cap(dst) > 0:
 		dst = dst[:cap(dst)]
-	default:
+	case foundHint:
 		dst = make([]byte, hint)
+	default:
+		return growDecompress(src, DecompressInto)
 	}
 
 	written, err := DecompressInto(dst, src)
@@ -164,6 +168,31 @@ func Decompress(dst, src []byte) ([]byte, error) {
 	}
 
 	// We failed getting a dst buffer of correct size, use stream API
+	r := NewReader(bytes.NewReader(src))
+	defer r.Close()
+	return ioutil.ReadAll(r)
+}
+
+// growDecompress decompresses src when the frame does not advertise its size and
+// no caller buffer was supplied. It starts small and grows on demand (3x, 6x,
+// 12x the compressed size) before falling back to the streaming reader, so it
+// never allocates the pessimistic decompressSizeBufferLimit bound up front and
+// only ever sizes from the input length, not an attacker-controlled field.
+func growDecompress(src []byte, into func(dst, src []byte) (int, error)) ([]byte, error) {
+	dst := make([]byte, len(src)*3)
+	for attempt := 0; attempt < 3; attempt++ {
+		written, err := into(dst, src)
+		if err == nil {
+			return dst[:written], nil
+		}
+		if !IsDstSizeTooSmallError(err) {
+			return nil, err
+		}
+		if attempt < 2 {
+			dst = make([]byte, len(dst)*2)
+		}
+	}
+
 	r := NewReader(bytes.NewReader(src))
 	defer r.Close()
 	return ioutil.ReadAll(r)
