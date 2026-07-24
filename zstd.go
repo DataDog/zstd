@@ -57,31 +57,33 @@ func cCompressBound(srcSize int) int {
 	return int(C.ZSTD_compressBound(C.size_t(srcSize)))
 }
 
-// decompressSizeHint tries to give a hint on how much of the output buffer size we should have
-// based on zstd frame descriptors. To prevent DOS from maliciously-created payloads, limit the size
-func decompressSizeHint(src []byte) int {
+// decompressSizeHint returns a suggested output size from the frame header, capped to guard against
+// zip bombs. foundHint is false when the frame does not advertise its size (legacy v0.5 or unpledged
+// streaming frames); the returned hint is then only a pessimistic upper bound.
+func decompressSizeHint(src []byte) (hint int, foundHint bool) {
 	// 1 MB or 50x input size
 	upperBound := 50 * len(src)
 	if upperBound < decompressSizeBufferLimit {
 		upperBound = decompressSizeBufferLimit
 	}
 
-	hint := upperBound
+	hint = upperBound
 	if len(src) >= zstdFrameHeaderSizeMin {
-		hint = int(C.ZSTD_getFrameContentSize(unsafe.Pointer(&src[0]), C.size_t(len(src))))
-		if hint < 0 { // On error, just use upperBound
-			hint = upperBound
-		}
-		if hint == 0 { // When compressing the empty slice, we need an output of at least 1 to pass down to the C lib
-			hint = 1
+		contentSize := int(C.ZSTD_getFrameContentSize(unsafe.Pointer(&src[0]), C.size_t(len(src))))
+		if contentSize >= 0 { // a negative value means the size is unknown or the header is in error
+			foundHint = true
+			hint = contentSize
+			if hint == 0 { // When compressing the empty slice, we need an output of at least 1 to pass down to the C lib
+				hint = 1
+			}
 		}
 	}
 
 	// Take the minimum of both
 	if hint > upperBound {
-		return upperBound
+		return upperBound, foundHint
 	}
-	return hint
+	return hint, foundHint
 }
 
 // Compress src into dst.  If you have a buffer to use, you can pass it to
@@ -131,16 +133,26 @@ func CompressLevel(dst, src []byte, level int) ([]byte, error) {
 // Decompress src into dst.  If you have a buffer to use, you can pass it to
 // prevent allocation.  If it is too small, or if nil is passed, a new buffer
 // will be allocated and returned.
+//
+// Note: for frames that do not advertise their size (legacy v0.5 or unpledged
+// streaming frames) dst may be partially overwritten even if a new slice is
+// returned; do not rely on dst's contents after such a call.
 func Decompress(dst, src []byte) ([]byte, error) {
 	if len(src) == 0 {
 		return []byte{}, ErrEmptySlice
 	}
 
-	bound := decompressSizeHint(src)
-	if cap(dst) >= bound {
-		dst = dst[0:cap(dst)]
-	} else {
-		dst = make([]byte, bound)
+	hint, foundHint := decompressSizeHint(src)
+
+	// Reuse the caller buffer when it is large enough, or when the size is
+	// unknown (the hint is then only an upper bound); otherwise allocate the hint.
+	switch {
+	case cap(dst) >= hint:
+		dst = dst[:cap(dst)]
+	case !foundHint && cap(dst) > 0:
+		dst = dst[:cap(dst)]
+	default:
+		dst = make([]byte, hint)
 	}
 
 	written, err := DecompressInto(dst, src)

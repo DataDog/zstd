@@ -23,6 +23,10 @@ type Ctx interface {
 	// Decompress src into dst.  If you have a buffer to use, you can pass it to
 	// prevent allocation.  If it is too small, or if nil is passed, a new buffer
 	// will be allocated and returned.
+	//
+	// Note: for frames that do not advertise their size (legacy v0.5 or unpledged
+	// streaming frames) dst may be partially overwritten even if a new slice is
+	// returned; do not rely on dst's contents after such a call.
 	Decompress(dst, src []byte) ([]byte, error)
 
 	// DecompressInto decompresses src into dst. Unlike Decompress, DecompressInto
@@ -41,14 +45,14 @@ type ctx struct {
 }
 
 // Create a new ZStd Context.
-//  When compressing/decompressing many times, it is recommended to allocate a
-//  context just once, and re-use it for each successive compression operation.
-//  This will make workload friendlier for system's memory.
-//  Note : re-using context is just a speed / resource optimization.
-//         It doesn't change the compression ratio, which remains identical.
-//  Note 2 : In multi-threaded environments,
-//         use one different context per thread for parallel execution.
 //
+//	When compressing/decompressing many times, it is recommended to allocate a
+//	context just once, and re-use it for each successive compression operation.
+//	This will make workload friendlier for system's memory.
+//	Note : re-using context is just a speed / resource optimization.
+//	       It doesn't change the compression ratio, which remains identical.
+//	Note 2 : In multi-threaded environments,
+//	       use one different context per thread for parallel execution.
 func NewCtx() Ctx {
 	c := &ctx{
 		cctx: C.ZSTD_createCCtx(),
@@ -106,11 +110,16 @@ func (c *ctx) Decompress(dst, src []byte) ([]byte, error) {
 		return []byte{}, ErrEmptySlice
 	}
 
-	bound := decompressSizeHint(src)
-	if cap(dst) >= bound {
-		dst = dst[0:cap(dst)]
-	} else {
-		dst = make([]byte, bound)
+	hint, foundHint := decompressSizeHint(src)
+
+	// See Decompress.
+	switch {
+	case cap(dst) >= hint:
+		dst = dst[:cap(dst)]
+	case !foundHint && cap(dst) > 0:
+		dst = dst[:cap(dst)]
+	default:
+		dst = make([]byte, hint)
 	}
 
 	written, err := c.DecompressInto(dst, src)
