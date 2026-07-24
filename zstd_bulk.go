@@ -110,7 +110,11 @@ func (p *BulkProcessor) Decompress(dst, src []byte) ([]byte, error) {
 		return nil, ErrEmptySlice
 	}
 
-	contentSize := decompressSizeHint(src)
+	// Unlike Decompress, this always sizes from the hint and does not reuse a
+	// too-small caller buffer for unknown-size frames: there is no streaming
+	// fallback here (the streaming reader ignores the dictionary), so a
+	// too-small buffer could not be recovered and would fail the decode.
+	contentSize, _ := decompressSizeHint(src)
 	if cap(dst) >= contentSize {
 		dst = dst[0:cap(dst)]
 	} else {
