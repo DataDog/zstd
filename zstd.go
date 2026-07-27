@@ -57,33 +57,42 @@ func cCompressBound(srcSize int) int {
 	return int(C.ZSTD_compressBound(C.size_t(srcSize)))
 }
 
+// decompressUpperBound is the largest output size decompressSizeHint will
+// suggest: at least decompressSizeBufferLimit, at most 50x the input. It guards
+// against zip bombs and bounds the allocation for callers with no streaming
+// fallback (see BulkProcessor.Decompress).
+func decompressUpperBound(src []byte) int {
+	b := 50 * len(src)
+	if b < decompressSizeBufferLimit {
+		b = decompressSizeBufferLimit
+	}
+	return b
+}
+
 // decompressSizeHint returns a suggested output size from the frame header, capped to guard against
 // zip bombs. foundHint is false when the frame does not advertise its size (legacy v0.5 or unpledged
 // streaming frames); the returned hint is then only a pessimistic upper bound.
 func decompressSizeHint(src []byte) (hint int, foundHint bool) {
-	// 1 MB or 50x input size
-	upperBound := 50 * len(src)
-	if upperBound < decompressSizeBufferLimit {
-		upperBound = decompressSizeBufferLimit
-	}
-
-	hint = upperBound
 	if len(src) >= zstdFrameHeaderSizeMin {
 		contentSize := int(C.ZSTD_getFrameContentSize(unsafe.Pointer(&src[0]), C.size_t(len(src))))
 		if contentSize >= 0 { // a negative value means the size is unknown or the header is in error
 			foundHint = true
 			hint = contentSize
-			if hint == 0 { // When compressing the empty slice, we need an output of at least 1 to pass down to the C lib
+			if hint == 0 { // an empty payload still needs an output of at least 1 for the C lib
 				hint = 1
 			}
+			if upper := decompressUpperBound(src); hint > upper {
+				hint = upper
+			}
+			return hint, true
 		}
 	}
 
-	// Take the minimum of both
-	if hint > upperBound {
-		return upperBound, foundHint
-	}
-	return hint, foundHint
+	// The frame does not advertise its size (legacy v0.5 or unpledged streaming
+	// frames). Guess a small multiple of the input rather than the flat upper
+	// bound; Decompress falls back to streaming if it is too small. 3x is always
+	// within decompressUpperBound (which is at least 50x the input).
+	return 3 * len(src), false
 }
 
 // Compress src into dst.  If you have a buffer to use, you can pass it to
