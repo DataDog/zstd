@@ -102,6 +102,58 @@ func TestZstdReaderLong(t *testing.T) {
 	testCompressionDecompression(t, nil, long.Bytes(), 1)
 }
 
+func TestWriterBufferPool(t *testing.T) {
+	SetWriterBufferPoolEnabled(false)
+	defer SetWriterBufferPoolEnabled(false)
+
+	unpooled := NewWriter(io.Discard)
+	if unpooled.dstBufferPtr != nil {
+		t.Fatal("writer buffer pooling is enabled by default")
+	}
+	failOnError(t, "failed to close unpooled writer", unpooled.Close())
+
+	SetWriterBufferPoolEnabled(true)
+	payload := bytes.Repeat([]byte("payload"), 10000)
+	pooled := NewWriter(io.Discard)
+	if pooled.dstBufferPtr == nil {
+		t.Fatal("writer did not use the enabled buffer pool")
+	}
+	buffer := pooled.dstBufferPtr
+	_, err := pooled.Write(payload)
+	failOnError(t, "failed to write with pooled writer", err)
+	failOnError(t, "failed to close pooled writer", pooled.Close())
+
+	if pooled.dstBuffer != nil || pooled.dstBufferPtr != nil {
+		t.Fatal("writer kept the pooled buffer after close")
+	}
+	if cap(*buffer) < CompressBound(len(payload)) {
+		t.Fatalf("pooled buffer capacity = %d, want at least %d", cap(*buffer), CompressBound(len(payload)))
+	}
+}
+
+func BenchmarkStreamWriterBufferPool(b *testing.B) {
+	payload := bytes.Repeat([]byte("payload"), 10000)
+	for _, enabled := range []bool{false, true} {
+		b.Run(fmt.Sprintf("enabled=%t", enabled), func(b *testing.B) {
+			SetWriterBufferPoolEnabled(enabled)
+			b.Cleanup(func() {
+				SetWriterBufferPoolEnabled(false)
+			})
+			b.ReportAllocs()
+			b.SetBytes(int64(len(payload)))
+			for i := 0; i < b.N; i++ {
+				writer := NewWriter(io.Discard)
+				if _, err := writer.Write(payload); err != nil {
+					b.Fatal(err)
+				}
+				if err := writer.Close(); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
 func doStreamCompressionDecompression() error {
 	payload := []byte("Hello World!")
 	repeat := 10000
