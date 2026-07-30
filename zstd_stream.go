@@ -67,12 +67,28 @@ import (
 	"io"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
 var errShortRead = errors.New("short read")
 var errReaderClosed = errors.New("Reader is closed")
 var ErrNoParallelSupport = errors.New("No parallel support")
+
+var writerBufferPoolEnabled atomic.Bool
+
+var writerBufferPool = sync.Pool{
+	New: func() interface{} {
+		buffer := make([]byte, CompressBound(1024))
+		return &buffer
+	},
+}
+
+// SetWriterBufferPoolEnabled enables or disables destination buffer pooling
+// for new Writers. Pooling is disabled by default.
+func SetWriterBufferPoolEnabled(enabled bool) {
+	writerBufferPoolEnabled.Store(enabled)
+}
 
 // Writer is an io.WriteCloser that zstd-compresses its input.
 type Writer struct {
@@ -81,6 +97,7 @@ type Writer struct {
 	ctx              *C.ZSTD_CCtx
 	dict             []byte
 	dstBuffer        []byte
+	dstBufferPtr     *[]byte
 	firstError       error
 	underlyingWriter io.Writer
 	resultBuffer     *C.compressStream2_result
@@ -119,6 +136,14 @@ func NewWriterLevel(w io.Writer, level int) *Writer {
 func NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer {
 	var err error
 	ctx := C.ZSTD_createCStream()
+	var dstBufferPtr *[]byte
+	var dstBuffer []byte
+	if writerBufferPoolEnabled.Load() {
+		dstBufferPtr = writerBufferPool.Get().(*[]byte)
+		dstBuffer = *dstBufferPtr
+	} else {
+		dstBuffer = make([]byte, CompressBound(1024))
+	}
 
 	// Load dictionnary if any
 	if dict != nil {
@@ -137,7 +162,8 @@ func NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer {
 		CompressionLevel: level,
 		ctx:              ctx,
 		dict:             dict,
-		dstBuffer:        make([]byte, CompressBound(1024)),
+		dstBuffer:        dstBuffer,
+		dstBufferPtr:     dstBufferPtr,
 		firstError:       err,
 		underlyingWriter: w,
 		resultBuffer:     new(C.compressStream2_result),
@@ -150,6 +176,16 @@ func finalizeWriter(w *Writer) {
 	if w.ctx != nil {
 		C.ZSTD_freeCStream(w.ctx)
 	}
+}
+
+func (w *Writer) releaseDstBuffer() {
+	if w.dstBufferPtr == nil {
+		return
+	}
+	*w.dstBufferPtr = w.dstBuffer[:cap(w.dstBuffer)]
+	writerBufferPool.Put(w.dstBufferPtr)
+	w.dstBuffer = nil
+	w.dstBufferPtr = nil
 }
 
 // Write writes a compressed form of p to the underlying io.Writer.
@@ -255,6 +291,8 @@ func (w *Writer) Flush() error {
 // Close closes the Writer, flushing any unwritten data to the underlying
 // io.Writer and freeing objects, but does not close the underlying io.Writer.
 func (w *Writer) Close() error {
+	defer w.releaseDstBuffer()
+
 	if w.ctx == nil {
 		if w.firstError != nil {
 			return w.firstError
