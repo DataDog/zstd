@@ -535,6 +535,48 @@ func TestWriterDoubleCloseIsSafe(t *testing.T) {
 	}
 }
 
+func TestWriterUseAfterCloseReturnsError(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+
+	_, err := w.Write([]byte("hello world"))
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+	failOnError(t, "Close failed", w.Close())
+
+	// The C context is freed by Close, so these must not reach the C library
+	if _, err := w.Write([]byte("hello again")); err != errWriterClosed {
+		t.Fatalf("Write() after Close() should return errWriterClosed, got: %v", err)
+	}
+	if err := w.Flush(); err != errWriterClosed {
+		t.Fatalf("Flush() after Close() should return errWriterClosed, got: %v", err)
+	}
+	if err := w.SetNbWorkers(2); err != errWriterClosed {
+		t.Fatalf("SetNbWorkers() after Close() should return errWriterClosed, got: %v", err)
+	}
+}
+
+func TestWriterWriteAfterFailedCloseReturnsError(t *testing.T) {
+	var bw bytes.Buffer
+	cw := &closeableWriter{w: &bw}
+	w := NewWriter(cw)
+
+	_, err := w.Write([]byte("hello world"))
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+
+	cw.Close() // make the underlying writer fail
+	if err := w.Close(); err == nil {
+		t.Fatal("Close() should have returned an error from the underlying writer")
+	}
+
+	if _, err := w.Write([]byte("hello again")); err != errWriterClosed {
+		t.Fatalf("Write() after a failed Close() should return errWriterClosed, got: %v", err)
+	}
+}
+
 func TestWriterCloseNilsContextOnUnderlyingWriterError(t *testing.T) {
 	var bw bytes.Buffer
 	cw := &closeableWriter{w: &bw}
