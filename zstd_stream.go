@@ -72,6 +72,7 @@ import (
 
 var errShortRead = errors.New("short read")
 var errReaderClosed = errors.New("Reader is closed")
+var errWriterClosed = errors.New("Writer is closed")
 var ErrNoParallelSupport = errors.New("No parallel support")
 
 // Writer is an io.WriteCloser that zstd-compresses its input.
@@ -157,6 +158,9 @@ func (w *Writer) Write(p []byte) (int, error) {
 	if w.firstError != nil {
 		return 0, w.firstError
 	}
+	if w.ctx == nil {
+		return 0, errWriterClosed
+	}
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -219,6 +223,9 @@ func (w *Writer) Write(p []byte) (int, error) {
 func (w *Writer) Flush() error {
 	if w.firstError != nil {
 		return w.firstError
+	}
+	if w.ctx == nil {
+		return errWriterClosed
 	}
 
 	ret := 1 // So we loop at least once
@@ -313,6 +320,9 @@ func (w *Writer) Close() error {
 func (w *Writer) SetNbWorkers(n int) error {
 	if w.firstError != nil {
 		return w.firstError
+	}
+	if w.ctx == nil {
+		return errWriterClosed
 	}
 	if err := getError(int(C.ZSTD_CCtx_setParameter(w.ctx, C.ZSTD_c_nbWorkers, C.int(n)))); err != nil {
 		w.firstError = err
