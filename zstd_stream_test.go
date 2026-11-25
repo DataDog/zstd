@@ -431,6 +431,44 @@ func TestWriterWriteAndFlushAfterClose(t *testing.T) {
 	}
 }
 
+func TestStreamWriterDictAndWorkersMultiChunk(t *testing.T) {
+	dict := bytes.Repeat([]byte("datadog-agent-zstd-dictionary-sample-entry-"), 64)
+	r := NewRandBytes()
+	payload := make([]byte, 512*1024)
+	r.Read(payload)
+
+	var compressed bytes.Buffer
+	w := NewWriterLevelDict(&compressed, DefaultCompression, dict)
+	if err := w.SetNbWorkers(2); err != nil {
+		t.Fatalf("SetNbWorkers failed: %v", err)
+	}
+	for off := 0; off < len(payload); off += 400 {
+		end := off + 400
+		if end > len(payload) {
+			end = len(payload)
+		}
+		if _, err := w.Write(payload[off:end]); err != nil {
+			t.Fatalf("Write failed: %v", err)
+		}
+	}
+	if err := w.Flush(); err != nil {
+		t.Fatalf("Flush failed: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+
+	zr := NewReaderDict(&compressed, dict)
+	defer zr.Close()
+	got, err := io.ReadAll(zr)
+	if err != nil {
+		t.Fatalf("ReadAll failed: %v", err)
+	}
+	if !bytes.Equal(payload, got) {
+		t.Fatalf("round-trip mismatch: got %d bytes, want %d bytes", len(got), len(payload))
+	}
+}
+
 func BenchmarkStreamWriterSmallWrites(b *testing.B) {
 	r := NewRandBytes()
 	lines := make([][]byte, 500)

@@ -75,7 +75,13 @@ var errReaderClosed = errors.New("Reader is closed")
 var errWriterClosed = errors.New("Writer is closed")
 var ErrNoParallelSupport = errors.New("No parallel support")
 
-var streamOutBufSize = int(C.ZSTD_CStreamOutSize())
+var streamOutBufSize = func() int {
+	sz := int(C.ZSTD_CStreamOutSize())
+	if sz <= 0 {
+		panic(fmt.Sprintf("invalid ZSTD_CStreamOutSize: %d", sz))
+	}
+	return sz
+}()
 
 var streamOutBufPool = sync.Pool{
 	New: func() interface{} {
