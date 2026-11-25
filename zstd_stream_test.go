@@ -414,6 +414,64 @@ func TestStreamSetNbWorkers(t *testing.T) {
 	testCompressionDecompression(t, nil, []byte(s), nbWorkers)
 }
 
+func BenchmarkStreamWriterSmallWrites(b *testing.B) {
+	r := NewRandBytes()
+	lines := make([][]byte, 500)
+	for i := range lines {
+		buf := make([]byte, 400)
+		copy(buf, `{"message":"2026-11-25 INFO handled request status=200 payload=`)
+		r.Read(buf[63:320])
+		for j := 63; j < 320; j++ {
+			buf[j] = 'a' + (buf[j] % 26)
+		}
+		copy(buf[320:], `","service":"api","ddtags":"env:prod,region:us-east-1"}`)
+		lines[i] = buf
+	}
+	var out bytes.Buffer
+	out.Grow(256 * 1024)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		out.Reset()
+		w := NewWriter(&out)
+		for _, line := range lines {
+			if _, err := w.Write(line); err != nil {
+				b.Fatal(err)
+			}
+		}
+		if err := w.Close(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkStreamWriterLargeWrites(b *testing.B) {
+	chunk := make([]byte, 256*1024)
+	r := NewRandBytes()
+	r.Read(chunk[:len(chunk)/2])
+	copy(chunk[len(chunk)/2:], chunk[:len(chunk)/2])
+
+	var out bytes.Buffer
+	out.Grow(512 * 1024)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		out.Reset()
+		w := NewWriter(&out)
+		for j := 0; j < 4; j++ {
+			if _, err := w.Write(chunk); err != nil {
+				b.Fatal(err)
+			}
+			if err := w.Flush(); err != nil {
+				b.Fatal(err)
+			}
+		}
+		if err := w.Close(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkStreamCompression(b *testing.B) {
 	if raw == nil {
 		b.Fatal(ErrNoPayloadEnv)

@@ -74,6 +74,15 @@ var errShortRead = errors.New("short read")
 var errReaderClosed = errors.New("Reader is closed")
 var ErrNoParallelSupport = errors.New("No parallel support")
 
+var streamOutBufSize = int(C.ZSTD_CStreamOutSize())
+
+var streamOutBufPool = sync.Pool{
+	New: func() interface{} {
+		b := make([]byte, streamOutBufSize)
+		return &b
+	},
+}
+
 // Writer is an io.WriteCloser that zstd-compresses its input.
 type Writer struct {
 	CompressionLevel int
@@ -81,6 +90,7 @@ type Writer struct {
 	ctx              *C.ZSTD_CCtx
 	dict             []byte
 	dstBuffer        []byte
+	dstBufferPtr     *[]byte
 	firstError       error
 	underlyingWriter io.Writer
 	resultBuffer     *C.compressStream2_result
@@ -133,17 +143,27 @@ func NewWriterLevelDict(w io.Writer, level int, dict []byte) *Writer {
 		err = getError(int(C.ZSTD_CCtx_setParameter(ctx, C.ZSTD_c_compressionLevel, C.int(level))))
 	}
 
+	bufPtr := streamOutBufPool.Get().(*[]byte)
 	writer := &Writer{
 		CompressionLevel: level,
 		ctx:              ctx,
 		dict:             dict,
-		dstBuffer:        make([]byte, CompressBound(1024)),
+		dstBuffer:        *bufPtr,
+		dstBufferPtr:     bufPtr,
 		firstError:       err,
 		underlyingWriter: w,
 		resultBuffer:     new(C.compressStream2_result),
 	}
 	runtime.SetFinalizer(writer, finalizeWriter)
 	return writer
+}
+
+func (w *Writer) releaseDstBuffer() {
+	if w.dstBufferPtr != nil {
+		streamOutBufPool.Put(w.dstBufferPtr)
+		w.dstBufferPtr = nil
+		w.dstBuffer = nil
+	}
 }
 
 func finalizeWriter(w *Writer) {
@@ -161,20 +181,12 @@ func (w *Writer) Write(p []byte) (int, error) {
 		return 0, nil
 	}
 	total := len(p)
-	// Check if dstBuffer is enough
-	w.dstBuffer = w.dstBuffer[0:cap(w.dstBuffer)]
-	if len(w.dstBuffer) < CompressBound(len(p)) {
-		w.dstBuffer = make([]byte, CompressBound(len(p)))
-	}
-
-	dstoff := 0
-	consumed := 0
 	for len(p) > 0 {
 		C.ZSTD_compressStream2_wrapper(
 			w.resultBuffer,
 			w.ctx,
-			unsafe.Pointer(&w.dstBuffer[dstoff]),
-			C.size_t(len(w.dstBuffer[dstoff:])),
+			unsafe.Pointer(&w.dstBuffer[0]),
+			C.size_t(len(w.dstBuffer)),
 			unsafe.Pointer(&p[0]),
 			C.size_t(len(p)),
 		)
@@ -185,34 +197,15 @@ func (w *Writer) Write(p []byte) (int, error) {
 			return 0, err
 		}
 		p = p[w.resultBuffer.bytes_consumed:]
-		dstoff += int(w.resultBuffer.bytes_written)
-		consumed += int(w.resultBuffer.bytes_consumed)
-		if len(p) > 0 && dstoff == len(w.dstBuffer) {
-			// We have bytes remaining to compress and our output buffer
-			// filled up. This shouldn't happen since we calculated it
-			// in advance using CompressBound, but we need to handle it
-			// in case there was some miscalculation, or the internal
-			// stream buffer contained enough data from previous writes
-			// to overflow dstBuffer. (it's not clear from the docs
-			// whether this is possible)
-			//
-			// Allocate space for whatever we haven't compressed yet.
-			newbuf := make([]byte, len(w.dstBuffer)+CompressBound(total-consumed))
-			copy(newbuf, w.dstBuffer)
-			w.dstBuffer = newbuf
-
+		if written := int(w.resultBuffer.bytes_written); written > 0 {
+			if _, err := w.underlyingWriter.Write(w.dstBuffer[:written]); err != nil {
+				// Same behaviour as zlib, we can't know how much data we wrote, only
+				// if there was an error
+				return 0, err
+			}
 		}
 	}
-
-	// Write to underlying buffer
-	_, err := w.underlyingWriter.Write(w.dstBuffer[:dstoff])
-
-	// Same behaviour as zlib, we can't know how much data we wrote, only
-	// if there was an error
-	if err != nil {
-		return 0, err
-	}
-	return total, err
+	return total, nil
 }
 
 // Flush writes any unwritten data to the underlying io.Writer.
@@ -235,16 +228,9 @@ func (w *Writer) Flush() error {
 		if err := getError(ret); err != nil {
 			return err
 		}
-		written := int(w.resultBuffer.bytes_written)
-		_, err := w.underlyingWriter.Write(w.dstBuffer[:written])
-		if err != nil {
-			return err
-		}
-
-		if ret > 0 { // We have a hint if we need to resize the dstBuffer
-			w.dstBuffer = w.dstBuffer[:cap(w.dstBuffer)]
-			if len(w.dstBuffer) < ret {
-				w.dstBuffer = make([]byte, ret)
+		if written := int(w.resultBuffer.bytes_written); written > 0 {
+			if _, err := w.underlyingWriter.Write(w.dstBuffer[:written]); err != nil {
+				return err
 			}
 		}
 	}
@@ -261,6 +247,8 @@ func (w *Writer) Close() error {
 		}
 		return nil
 	}
+
+	defer w.releaseDstBuffer()
 
 	if w.firstError != nil {
 		C.ZSTD_freeCStream(w.ctx)
@@ -284,18 +272,11 @@ func (w *Writer) Close() error {
 			w.ctx = nil
 			return err
 		}
-		written := int(w.resultBuffer.bytes_written)
-		_, err := w.underlyingWriter.Write(w.dstBuffer[:written])
-		if err != nil {
-			C.ZSTD_freeCStream(w.ctx)
-			w.ctx = nil
-			return err
-		}
-
-		if ret > 0 { // We have a hint if we need to resize the dstBuffer
-			w.dstBuffer = w.dstBuffer[:cap(w.dstBuffer)]
-			if len(w.dstBuffer) < ret {
-				w.dstBuffer = make([]byte, ret)
+		if written := int(w.resultBuffer.bytes_written); written > 0 {
+			if _, err := w.underlyingWriter.Write(w.dstBuffer[:written]); err != nil {
+				C.ZSTD_freeCStream(w.ctx)
+				w.ctx = nil
+				return err
 			}
 		}
 	}
