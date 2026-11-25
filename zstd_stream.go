@@ -72,6 +72,7 @@ import (
 
 var errShortRead = errors.New("short read")
 var errReaderClosed = errors.New("Reader is closed")
+var errWriterClosed = errors.New("Writer is closed")
 var ErrNoParallelSupport = errors.New("No parallel support")
 
 var streamOutBufSize = int(C.ZSTD_CStreamOutSize())
@@ -177,6 +178,9 @@ func (w *Writer) Write(p []byte) (int, error) {
 	if w.firstError != nil {
 		return 0, w.firstError
 	}
+	if w.ctx == nil {
+		return 0, errWriterClosed
+	}
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -212,6 +216,9 @@ func (w *Writer) Write(p []byte) (int, error) {
 func (w *Writer) Flush() error {
 	if w.firstError != nil {
 		return w.firstError
+	}
+	if w.ctx == nil {
+		return errWriterClosed
 	}
 
 	ret := 1 // So we loop at least once

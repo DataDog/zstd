@@ -414,6 +414,23 @@ func TestStreamSetNbWorkers(t *testing.T) {
 	testCompressionDecompression(t, nil, []byte(s), nbWorkers)
 }
 
+func TestWriterWriteAndFlushAfterClose(t *testing.T) {
+	var out bytes.Buffer
+	w := NewWriter(&out)
+	if _, err := w.Write([]byte("hello")); err != nil {
+		t.Fatalf("unexpected write error: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("unexpected close error: %v", err)
+	}
+	if _, err := w.Write([]byte("after close")); err == nil {
+		t.Fatal("expected error writing to closed writer")
+	}
+	if err := w.Flush(); err == nil {
+		t.Fatal("expected error flushing closed writer")
+	}
+}
+
 func BenchmarkStreamWriterSmallWrites(b *testing.B) {
 	r := NewRandBytes()
 	lines := make([][]byte, 500)
